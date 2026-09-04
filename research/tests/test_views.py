@@ -173,6 +173,75 @@ class DiaryVisibilityTests(AuthenticatedTestCase):
         self.assertTrue(entry.is_public)
 
 
+class DiarySearchTests(AuthenticatedTestCase):
+    """研究日記のキーワード検索（本文・タグが対象）。"""
+
+    def setUp(self):
+        super().setUp()
+        DiaryEntry.objects.create(
+            user=self.user,
+            date=timezone.localdate(),
+            content="前処理のバグを修正した。データ件数が想定より少なかった。",
+            tags="実装, デバッグ",
+        )
+        DiaryEntry.objects.create(
+            user=self.user,
+            date=timezone.localdate() - timedelta(days=1),
+            content="関連研究を3本読んだ。評価指標の扱いを整理。",
+            tags="論文読み",
+        )
+
+    def test_search_matches_content(self):
+        response = self.client.get(reverse("research:diary_list"), {"q": "前処理"})
+        self.assertContains(response, "前処理のバグ")
+        self.assertNotContains(response, "関連研究を3本")
+
+    def test_search_matches_tags(self):
+        response = self.client.get(reverse("research:diary_list"), {"q": "論文読み"})
+        self.assertContains(response, "関連研究を3本")
+        self.assertNotContains(response, "前処理のバグ")
+
+    def test_multiple_words_are_combined_with_and(self):
+        response = self.client.get(reverse("research:diary_list"), {"q": "前処理 データ"})
+        self.assertEqual(len(response.context["entries"]), 1)
+
+        response = self.client.get(reverse("research:diary_list"), {"q": "前処理 評価指標"})
+        self.assertEqual(len(response.context["entries"]), 0)
+
+    def test_search_is_case_insensitive(self):
+        DiaryEntry.objects.create(
+            user=self.user, date=timezone.localdate(), content="GPUメモリの調整", tags=""
+        )
+        response = self.client.get(reverse("research:diary_list"), {"q": "gpu"})
+        self.assertContains(response, "GPUメモリ")
+
+    def test_search_does_not_cross_visibility_boundary(self):
+        """検索しても、他メンバーの非公開日記は出てこない。"""
+        DiaryEntry.objects.create(
+            user=self.other, date=timezone.localdate(), content="他人の非公開メモ", tags=""
+        )
+        response = self.client.get(reverse("research:diary_list"), {"q": "メモ"})
+        self.assertNotContains(response, "他人の非公開メモ")
+
+        response = self.client.get(reverse("research:diary_list"), {"q": "メモ", "scope": "lab"})
+        self.assertNotContains(response, "他人の非公開メモ")
+
+    def test_no_match_shows_message(self):
+        response = self.client.get(reverse("research:diary_list"), {"q": "存在しない語"})
+        self.assertContains(response, "条件に一致する研究日記はありません")
+
+    def test_excerpt_strips_markdown_syntax(self):
+        DiaryEntry.objects.create(
+            user=self.user,
+            date=timezone.localdate(),
+            content="## 見出し\n\n- 箇条書き",
+            tags="",
+        )
+        response = self.client.get(reverse("research:diary_list"))
+        self.assertContains(response, "見出し")
+        self.assertNotContains(response, "## 見出し")
+
+
 class DiaryUpdateDeleteTests(AuthenticatedTestCase):
     """研究日記の更新・削除（CRUDのU・D）。"""
 

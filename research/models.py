@@ -1,8 +1,11 @@
 """優先度1: 研究支援系のモデル（詳細設計書 2.3〜2.5）。"""
 
+from html import unescape
+
 from django.conf import settings
 from django.db import models
 from django.utils import timezone
+from django.utils.html import strip_tags
 from django.utils.safestring import mark_safe
 
 from .markdown_render import render_markdown
@@ -56,6 +59,12 @@ class DiaryEntry(models.Model):
     def is_public(self) -> bool:
         """研究室内に公開されているか。"""
         return self.visibility == DiaryVisibility.LAB
+
+    @property
+    def content_excerpt(self) -> str:
+        """一覧に出す抜粋。Markdownの記法を除いた本文の先頭部分。"""
+        text = strip_tags(render_markdown(self.content)).replace("\n", " ").strip()
+        return unescape(text)
 
     @property
     def content_html(self) -> str:

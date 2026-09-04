@@ -88,6 +88,7 @@ def diary_list(request: HttpRequest) -> HttpResponse:
     """GET /diary/ : 研究日記一覧。
 
     既定は自分の記録のみ。scope=lab で研究室内に公開された日記を一覧する。
+    q= で本文・タグを対象にキーワード検索し、tag= でタグのみを対象に絞り込む。
     """
     scope = "lab" if request.GET.get("scope") == "lab" else "mine"
     if scope == "lab":
@@ -95,13 +96,21 @@ def diary_list(request: HttpRequest) -> HttpResponse:
     else:
         entries = DiaryEntry.objects.filter(user=request.user).select_related("user")
 
+    # キーワード検索（本文・タグを対象）。空白区切りの語はすべて含むものに絞る（AND）
+    query = request.GET.get("q", "").strip()
+    if query:
+        for word in query.split():
+            entries = entries.filter(Q(content__icontains=word) | Q(tags__icontains=word))
+
+    # タグバッジからの絞り込み（タグのみを対象）
     tag = request.GET.get("tag", "").strip()
     if tag:
         entries = entries.filter(tags__icontains=tag)
+
     return render(
         request,
         "research/diary_list.html",
-        {"entries": entries, "tag": tag, "scope": scope},
+        {"entries": entries, "query": query, "tag": tag, "scope": scope},
     )
 
 
