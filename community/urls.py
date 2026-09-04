@@ -13,6 +13,8 @@ urlpatterns = [
     # 学食メニュー共有
     path("canteen/today", views.canteen_today, name="canteen_today"),
     path("canteen/", views.canteen_create, name="canteen_create"),
+    path("canteen/<int:pk>/edit", views.canteen_update, name="canteen_update"),
+    path("canteen/<int:pk>/delete", views.canteen_delete, name="canteen_delete"),
     # 研究室HP News投稿
     path("news/", views.news_list, name="news_list"),
     path("news/new", views.news_create, name="news_create"),

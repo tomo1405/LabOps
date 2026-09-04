@@ -26,6 +26,8 @@ class LoginRequiredTests(TestCase):
         urls = [
             reverse("community:attendance_list"),
             reverse("community:canteen_today"),
+            reverse("community:canteen_update", args=[1]),
+            reverse("community:canteen_delete", args=[1]),
             reverse("community:news_list"),
             reverse("community:news_create"),
             reverse("community:news_update", args=[1]),
@@ -124,6 +126,62 @@ class CanteenViewTests(AuthenticatedTestCase):
         )
         self.assertEqual(response.status_code, 400)
         self.assertFalse(CanteenMenu.objects.exists())
+
+
+class CanteenUpdateDeleteTests(AuthenticatedTestCase):
+    """学食メニューの更新・削除。日付ごとに1件という制約を保つ。"""
+
+    def setUp(self):
+        super().setUp()
+        self.today = timezone.localdate()
+        self.menu = CanteenMenu.objects.create(date=self.today, menu_text="A定食: からあげ")
+
+    def test_edit_form_shows_current_values(self):
+        response = self.client.get(reverse("community:canteen_update", args=[self.menu.pk]))
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(response, "A定食: からあげ")
+
+    def test_update_changes_menu_text(self):
+        response = self.client.post(
+            reverse("community:canteen_update", args=[self.menu.pk]),
+            {"date": self.today.isoformat(), "menu_text": "A定食: 焼き魚"},
+        )
+        self.assertRedirects(response, reverse("community:canteen_today"))
+        self.menu.refresh_from_db()
+        self.assertEqual(self.menu.menu_text, "A定食: 焼き魚")
+        self.assertEqual(CanteenMenu.objects.count(), 1)
+
+    def test_moving_to_an_existing_date_overwrites_that_day(self):
+        """既に登録済みの日付へ移すと、その日の登録を置き換えて重複を作らない。"""
+        yesterday = self.today - timedelta(days=1)
+        CanteenMenu.objects.create(date=yesterday, menu_text="昨日のメニュー")
+        self.client.post(
+            reverse("community:canteen_update", args=[self.menu.pk]),
+            {"date": yesterday.isoformat(), "menu_text": "差し替え後のメニュー"},
+        )
+        self.assertEqual(CanteenMenu.objects.count(), 1)
+        menu = CanteenMenu.objects.get()
+        self.assertEqual(menu.date, yesterday)
+        self.assertEqual(menu.menu_text, "差し替え後のメニュー")
+
+    def test_update_rejects_empty_menu_text(self):
+        response = self.client.post(
+            reverse("community:canteen_update", args=[self.menu.pk]),
+            {"date": self.today.isoformat(), "menu_text": ""},
+        )
+        self.assertEqual(response.status_code, 200)
+        self.menu.refresh_from_db()
+        self.assertEqual(self.menu.menu_text, "A定食: からあげ")
+
+    def test_delete_confirmation_page_does_not_delete(self):
+        response = self.client.get(reverse("community:canteen_delete", args=[self.menu.pk]))
+        self.assertEqual(response.status_code, 200)
+        self.assertTrue(CanteenMenu.objects.filter(pk=self.menu.pk).exists())
+
+    def test_delete_removes_menu(self):
+        response = self.client.post(reverse("community:canteen_delete", args=[self.menu.pk]))
+        self.assertRedirects(response, reverse("community:canteen_today"))
+        self.assertFalse(CanteenMenu.objects.filter(pk=self.menu.pk).exists())
 
 
 class NewsViewTests(AuthenticatedTestCase):

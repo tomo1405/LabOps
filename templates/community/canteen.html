@@ -10,7 +10,11 @@
       <div class="card-body">
         {% if today_menu %}
           <p class="mb-1" style="white-space: pre-wrap;">{{ today_menu.menu_text }}</p>
-          <span class="badge text-bg-light">{{ today_menu.get_source_display }}</span>
+          <div class="d-flex justify-content-between align-items-center">
+            <span class="badge text-bg-light">{{ today_menu.get_source_display }}</span>
+            <a class="btn btn-sm btn-outline-secondary"
+               href="{% url 'community:canteen_update' today_menu.pk %}">編集</a>
+          </div>
         {% else %}
           <p class="text-secondary mb-0">まだ登録されていません。右のフォームから登録してください。</p>
         {% endif %}
@@ -21,9 +25,13 @@
       <div class="card-header">これまでの登録</div>
       <ul class="list-group list-group-flush">
         {% for menu in recent_menus %}
-          <li class="list-group-item">
-            <div class="fw-semibold">{{ menu.date|date:"n月j日 (D)" }}</div>
-            <div class="text-secondary small" style="white-space: pre-wrap;">{{ menu.menu_text }}</div>
+          <li class="list-group-item d-flex justify-content-between align-items-start gap-2">
+            <div>
+              <div class="fw-semibold">{{ menu.date|date:"n月j日 (D)" }}</div>
+              <div class="text-secondary small" style="white-space: pre-wrap;">{{ menu.menu_text }}</div>
+            </div>
+            <a class="btn btn-sm btn-outline-secondary flex-shrink-0"
+               href="{% url 'community:canteen_update' menu.pk %}">編集</a>
           </li>
         {% empty %}
           <li class="list-group-item text-secondary">過去の登録はありません。</li>

@@ -100,6 +100,42 @@ def canteen_create(request: HttpRequest) -> HttpResponse:
     return render(request, "community/canteen.html", _canteen_context(form), status=400)
 
 
+@login_required
+def canteen_update(request: HttpRequest, pk: int) -> HttpResponse:
+    """GET/POST /canteen/<id>/edit : 登録済みメニューの編集。
+
+    日付ごとに1件のため、日付を既存の別日に変更した場合はその日を上書きする。
+    """
+    menu = get_object_or_404(CanteenMenu, pk=pk)
+    if request.method == "POST":
+        form = CanteenMenuForm(request.POST, instance=menu)
+        if form.is_valid():
+            date = form.cleaned_data["date"]
+            # 別の日付へ移す場合、その日に既存の登録があれば上書きして重複を作らない
+            CanteenMenu.objects.filter(date=date).exclude(pk=menu.pk).delete()
+            menu.date = date
+            menu.menu_text = form.cleaned_data["menu_text"]
+            menu.source = MenuSource.MANUAL
+            menu.save()
+            messages.success(request, f"{menu.date} のメニューを更新しました。")
+            return redirect("community:canteen_today")
+    else:
+        form = CanteenMenuForm(instance=menu)
+    return render(request, "community/canteen_form.html", {"form": form, "menu": menu})
+
+
+@login_required
+def canteen_delete(request: HttpRequest, pk: int) -> HttpResponse:
+    """GET/POST /canteen/<id>/delete : 登録済みメニューの削除（GETは確認画面）。"""
+    menu = get_object_or_404(CanteenMenu, pk=pk)
+    if request.method == "POST":
+        date = menu.date
+        menu.delete()
+        messages.success(request, f"{date} のメニューを削除しました。")
+        return redirect("community:canteen_today")
+    return render(request, "community/canteen_confirm_delete.html", {"menu": menu})
+
+
 # --- 研究室HP News投稿 ----------------------------------------------------
 
 

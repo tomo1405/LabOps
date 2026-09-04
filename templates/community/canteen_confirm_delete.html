@@ -1,0 +1,24 @@
+{% extends "base.html" %}
+{% block title %}学食メニューの削除 | 研究室統合プラットフォーム{% endblock %}
+{% block heading %}学食メニューの削除{% endblock %}
+
+{% block content %}
+<div class="row">
+  <div class="col-lg-6">
+    <div class="card border-danger">
+      <div class="card-header text-bg-danger">このメニューを削除しますか？</div>
+      <div class="card-body">
+        <div class="fw-semibold">{{ menu.date|date:"Y年n月j日 (D)" }}</div>
+        <div class="text-secondary" style="white-space: pre-wrap;">{{ menu.menu_text }}</div>
+      </div>
+      <div class="card-footer">
+        <form method="post">
+          {% csrf_token %}
+          <button type="submit" class="btn btn-danger">削除する</button>
+          <a class="btn btn-link" href="{% url 'community:canteen_update' menu.pk %}">キャンセル</a>
+        </form>
+      </div>
+    </div>
+  </div>
+</div>
+{% endblock %}

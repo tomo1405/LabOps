@@ -1,0 +1,30 @@
+{% extends "base.html" %}
+{% block title %}学食メニューの編集 | 研究室統合プラットフォーム{% endblock %}
+{% block heading %}学食メニューの編集{% endblock %}
+{% block heading_actions %}
+  <a class="btn btn-outline-danger" href="{% url 'community:canteen_delete' menu.pk %}">削除</a>
+{% endblock %}
+
+{% block content %}
+<div class="row">
+  <div class="col-lg-6">
+    <div class="card">
+      <div class="card-body">
+        <form method="post">
+          {% csrf_token %}
+          {% for field in form %}
+            <div class="mb-3">
+              <label class="form-label" for="{{ field.id_for_label }}">{{ field.label }}</label>
+              {{ field }}
+              {% for error in field.errors %}<div class="text-danger small">{{ error }}</div>{% endfor %}
+            </div>
+          {% endfor %}
+          <button type="submit" class="btn btn-primary">保存</button>
+          <a class="btn btn-link" href="{% url 'community:canteen_today' %}">キャンセル</a>
+        </form>
+      </div>
+    </div>
+    <p class="text-secondary small mt-3 mb-0">日付を既に登録済みの日に変更すると、その日の内容を上書きします。</p>
+  </div>
+</div>
+{% endblock %}
