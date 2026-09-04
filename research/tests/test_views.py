@@ -11,6 +11,7 @@ from research.models import (
     ConferenceChecklistItem,
     ConferencePrep,
     DiaryEntry,
+    DiaryVisibility,
     EventType,
     ScheduleEvent,
 )
@@ -56,7 +57,12 @@ class DiaryViewTests(AuthenticatedTestCase):
     def test_create_diary_assigns_current_user(self):
         response = self.client.post(
             reverse("research:diary_create"),
-            {"date": "2026-09-04", "content": "実験の結果を整理した", "tags": "実験"},
+            {
+                "date": "2026-09-04",
+                "content": "実験の結果を整理した",
+                "tags": "実験",
+                "visibility": "private",
+            },
         )
         entry = DiaryEntry.objects.get()
         self.assertRedirects(response, reverse("research:diary_detail", args=[entry.pk]))
@@ -93,6 +99,80 @@ class DiaryViewTests(AuthenticatedTestCase):
         self.assertEqual(response.status_code, 404)
 
 
+class DiaryVisibilityTests(AuthenticatedTestCase):
+    """研究日記の公開範囲（非公開／研究室内に公開）。"""
+
+    def setUp(self):
+        super().setUp()
+        self.private = DiaryEntry.objects.create(
+            user=self.other, date=timezone.localdate(), content="他人の非公開日記"
+        )
+        self.public = DiaryEntry.objects.create(
+            user=self.other,
+            date=timezone.localdate(),
+            content="他人の公開日記",
+            visibility=DiaryVisibility.LAB,
+        )
+
+    def test_default_visibility_is_private(self):
+        entry = DiaryEntry.objects.create(user=self.user, date=timezone.localdate(), content="自分の日記")
+        self.assertEqual(entry.visibility, DiaryVisibility.PRIVATE)
+        self.assertFalse(entry.is_public)
+
+    def test_mine_scope_excludes_other_members_public_entries(self):
+        DiaryEntry.objects.create(user=self.user, date=timezone.localdate(), content="自分の日記")
+        response = self.client.get(reverse("research:diary_list"))
+        self.assertContains(response, "自分の日記")
+        self.assertNotContains(response, "他人の公開日記")
+
+    def test_lab_scope_shows_only_public_entries(self):
+        DiaryEntry.objects.create(
+            user=self.user,
+            date=timezone.localdate(),
+            content="自分の公開日記",
+            visibility=DiaryVisibility.LAB,
+        )
+        DiaryEntry.objects.create(user=self.user, date=timezone.localdate(), content="自分の非公開日記")
+        response = self.client.get(reverse("research:diary_list"), {"scope": "lab"})
+        self.assertContains(response, "他人の公開日記")
+        self.assertContains(response, "自分の公開日記")
+        self.assertNotContains(response, "他人の非公開日記")
+        self.assertNotContains(response, "自分の非公開日記")
+
+    def test_can_view_other_members_public_entry(self):
+        response = self.client.get(reverse("research:diary_detail", args=[self.public.pk]))
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(response, "他人の公開日記")
+
+    def test_cannot_view_other_members_private_entry(self):
+        response = self.client.get(reverse("research:diary_detail", args=[self.private.pk]))
+        self.assertEqual(response.status_code, 404)
+
+    def test_cannot_edit_or_delete_other_members_public_entry(self):
+        """公開されていても、編集・削除できるのは作成者だけ。"""
+        for name in ("research:diary_update", "research:diary_delete"):
+            with self.subTest(view=name):
+                response = self.client.post(
+                    reverse(name, args=[self.public.pk]),
+                    {"date": "2026-09-01", "content": "書き換え", "tags": "", "visibility": "lab"},
+                )
+                self.assertEqual(response.status_code, 404)
+        self.assertTrue(DiaryEntry.objects.filter(pk=self.public.pk).exists())
+
+    def test_edit_buttons_hidden_on_other_members_entry(self):
+        response = self.client.get(reverse("research:diary_detail", args=[self.public.pk]))
+        self.assertNotContains(response, reverse("research:diary_update", args=[self.public.pk]))
+
+    def test_can_publish_own_entry_by_editing(self):
+        entry = DiaryEntry.objects.create(user=self.user, date=timezone.localdate(), content="自分の日記")
+        self.client.post(
+            reverse("research:diary_update", args=[entry.pk]),
+            {"date": "2026-09-01", "content": "自分の日記", "tags": "", "visibility": "lab"},
+        )
+        entry.refresh_from_db()
+        self.assertTrue(entry.is_public)
+
+
 class DiaryUpdateDeleteTests(AuthenticatedTestCase):
     """研究日記の更新・削除（CRUDのU・D）。"""
 
@@ -110,7 +190,7 @@ class DiaryUpdateDeleteTests(AuthenticatedTestCase):
     def test_update_changes_content_and_keeps_owner(self):
         response = self.client.post(
             reverse("research:diary_update", args=[self.entry.pk]),
-            {"date": "2026-09-01", "content": "修正後の本文", "tags": "実験, 解析"},
+            {"date": "2026-09-01", "content": "修正後の本文", "tags": "実験, 解析", "visibility": "private"},
         )
         self.assertRedirects(response, reverse("research:diary_detail", args=[self.entry.pk]))
         self.entry.refresh_from_db()
@@ -130,7 +210,7 @@ class DiaryUpdateDeleteTests(AuthenticatedTestCase):
     def test_update_does_not_create_new_entry(self):
         self.client.post(
             reverse("research:diary_update", args=[self.entry.pk]),
-            {"date": "2026-09-01", "content": "修正後の本文", "tags": ""},
+            {"date": "2026-09-01", "content": "修正後の本文", "tags": "", "visibility": "private"},
         )
         self.assertEqual(DiaryEntry.objects.count(), 1)
 

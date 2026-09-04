@@ -4,15 +4,25 @@
 {% block heading_actions %}
   <div class="d-flex gap-2">
     <a class="btn btn-outline-secondary" href="{% url 'research:diary_list' %}">一覧へ</a>
-    <a class="btn btn-primary" href="{% url 'research:diary_update' entry.pk %}">編集</a>
-    <a class="btn btn-outline-danger" href="{% url 'research:diary_delete' entry.pk %}">削除</a>
+    {% if entry.user_id == user.pk %}
+      <a class="btn btn-primary" href="{% url 'research:diary_update' entry.pk %}">編集</a>
+      <a class="btn btn-outline-danger" href="{% url 'research:diary_delete' entry.pk %}">削除</a>
+    {% endif %}
   </div>
 {% endblock %}
 
 {% block content %}
 <div class="card">
   <div class="card-body">
-    <div class="mb-2">
+    <div class="mb-2 d-flex align-items-center gap-2 flex-wrap">
+      <span class="text-secondary small">{{ entry.user.name }}</span>
+      {% if entry.user_id == user.pk %}
+        {% if entry.is_public %}
+          <span class="badge text-bg-success">研究室内に公開中</span>
+        {% else %}
+          <span class="badge text-bg-secondary">非公開</span>
+        {% endif %}
+      {% endif %}
       {% for t in entry.tag_list %}<span class="badge text-bg-info">{{ t }}</span>{% endfor %}
     </div>
     <div class="diary-content">{{ entry.content }}</div>

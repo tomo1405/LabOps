@@ -58,3 +58,34 @@
   background-color: var(--bs-success, #198754);
   border-color: var(--bs-success, #198754);
 }
+
+/* 研究日記の一覧行（クリックできることが分かるようにする） */
+.diary-row {
+  cursor: pointer;
+  transition: background-color 0.12s ease, box-shadow 0.12s ease;
+}
+.diary-row-title {
+  color: var(--bs-link-color, #0d6efd);
+  text-decoration: underline;
+  text-underline-offset: 2px;
+}
+.diary-row-more {
+  display: inline-block;
+  margin-top: 0.35rem;
+  color: var(--bs-link-color, #0d6efd);
+}
+.diary-row-more::after {
+  content: " →";
+}
+.diary-row-chevron {
+  align-self: center;
+  font-size: 1.6rem;
+  line-height: 1;
+  color: var(--bs-secondary-color, #6c757d);
+}
+.diary-row:hover {
+  box-shadow: inset 3px 0 0 var(--bs-primary, #0d6efd);
+}
+.diary-row:hover .diary-row-chevron {
+  color: var(--bs-primary, #0d6efd);
+}

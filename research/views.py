@@ -26,11 +26,22 @@ from .forms import (
     DiaryEntryForm,
     ScheduleEventForm,
 )
-from .models import ConferenceChecklistItem, ConferencePrep, DiaryEntry, ScheduleEvent
+from .models import (
+    ConferenceChecklistItem,
+    ConferencePrep,
+    DiaryEntry,
+    DiaryVisibility,
+    ScheduleEvent,
+)
 
 DASHBOARD_DIARY_LIMIT = 5
 DASHBOARD_EVENT_LIMIT = 5
 DASHBOARD_NEWS_LIMIT = 3
+
+
+def _visible_diaries(user):
+    """本人の日記と、研究室内に公開された日記を対象とする QuerySet。"""
+    return DiaryEntry.objects.filter(Q(user=user) | Q(visibility=DiaryVisibility.LAB)).select_related("user")
 
 
 def _visible_events(user):
@@ -74,12 +85,24 @@ def dashboard(request: HttpRequest) -> HttpResponse:
 @login_required
 @require_GET
 def diary_list(request: HttpRequest) -> HttpResponse:
-    """GET /diary/ : 研究日記一覧（本人分）。タグでの絞り込みに対応。"""
-    entries = DiaryEntry.objects.filter(user=request.user)
+    """GET /diary/ : 研究日記一覧。
+
+    既定は自分の記録のみ。scope=lab で研究室内に公開された日記を一覧する。
+    """
+    scope = "lab" if request.GET.get("scope") == "lab" else "mine"
+    if scope == "lab":
+        entries = _visible_diaries(request.user).filter(visibility=DiaryVisibility.LAB)
+    else:
+        entries = DiaryEntry.objects.filter(user=request.user).select_related("user")
+
     tag = request.GET.get("tag", "").strip()
     if tag:
         entries = entries.filter(tags__icontains=tag)
-    return render(request, "research/diary_list.html", {"entries": entries, "tag": tag})
+    return render(
+        request,
+        "research/diary_list.html",
+        {"entries": entries, "tag": tag, "scope": scope},
+    )
 
 
 @login_required
@@ -101,8 +124,11 @@ def diary_create(request: HttpRequest) -> HttpResponse:
 @login_required
 @require_GET
 def diary_detail(request: HttpRequest, pk: int) -> HttpResponse:
-    """GET /diary/<id> : 研究日記詳細（本人分のみ）。"""
-    entry = get_object_or_404(DiaryEntry, pk=pk, user=request.user)
+    """GET /diary/<id> : 研究日記詳細。
+
+    本人の記録に加えて、研究室内に公開された他メンバーの記録も閲覧できる。
+    """
+    entry = get_object_or_404(_visible_diaries(request.user), pk=pk)
     return render(request, "research/diary_detail.html", {"entry": entry})
 
 

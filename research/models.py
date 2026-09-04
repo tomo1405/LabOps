@@ -5,8 +5,17 @@ from django.db import models
 from django.utils import timezone
 
 
+class DiaryVisibility(models.TextChoices):
+    PRIVATE = "private", "非公開（自分のみ）"
+    LAB = "lab", "研究室内に公開"
+
+
 class DiaryEntry(models.Model):
-    """研究日記（詳細設計書 2.3 DiaryEntry）。"""
+    """研究日記（詳細設計書 2.3 DiaryEntry）。
+
+    公開範囲（visibility）は設計書にない追加項目。既定は非公開で、
+    本人が明示的に切り替えたものだけを研究室内へ公開する。
+    """
 
     user = models.ForeignKey(
         settings.AUTH_USER_MODEL,
@@ -17,6 +26,13 @@ class DiaryEntry(models.Model):
     date = models.DateField("日付")
     content = models.TextField("本文")
     tags = models.CharField("タグ", max_length=200, blank=True, help_text="カンマ区切りで入力")
+    visibility = models.CharField(
+        "公開範囲",
+        max_length=10,
+        choices=DiaryVisibility.choices,
+        default=DiaryVisibility.PRIVATE,
+        help_text="研究室内に公開すると、他のメンバーも閲覧できます",
+    )
     created_at = models.DateTimeField("作成日時", auto_now_add=True)
     updated_at = models.DateTimeField("更新日時", auto_now=True)
 
@@ -32,6 +48,11 @@ class DiaryEntry(models.Model):
     def tag_list(self) -> list[str]:
         """カンマ区切りタグをリスト化する（空要素は除去）。"""
         return [t.strip() for t in self.tags.split(",") if t.strip()]
+
+    @property
+    def is_public(self) -> bool:
+        """研究室内に公開されているか。"""
+        return self.visibility == DiaryVisibility.LAB
 
 
 class ConferencePrep(models.Model):

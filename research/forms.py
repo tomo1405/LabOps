@@ -9,11 +9,12 @@ from .models import ConferenceChecklistItem, ConferencePrep, DiaryEntry, Schedul
 class DiaryEntryForm(forms.ModelForm):
     class Meta:
         model = DiaryEntry
-        fields = ["date", "content", "tags"]
+        fields = ["date", "content", "tags", "visibility"]
         widgets = {
             "date": forms.DateInput(attrs={"type": "date", "class": "form-control"}),
             "content": forms.Textarea(attrs={"class": "form-control", "rows": 10}),
             "tags": forms.TextInput(attrs={"class": "form-control", "placeholder": "実験, 論文読み"}),
+            "visibility": forms.RadioSelect(),
         }
 
     def __init__(self, *args, **kwargs):

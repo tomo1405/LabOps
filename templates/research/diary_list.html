@@ -6,29 +6,69 @@
 {% endblock %}
 
 {% block content %}
+<ul class="nav nav-tabs mb-3">
+  <li class="nav-item">
+    <a class="nav-link {% if scope == 'mine' %}active{% endif %}"
+       href="{% url 'research:diary_list' %}">自分の日記</a>
+  </li>
+  <li class="nav-item">
+    <a class="nav-link {% if scope == 'lab' %}active{% endif %}"
+       href="{% url 'research:diary_list' %}?scope=lab">研究室の公開日記</a>
+  </li>
+</ul>
+
 <form class="row g-2 mb-3" method="get">
+  {% if scope == 'lab' %}<input type="hidden" name="scope" value="lab">{% endif %}
   <div class="col-auto">
     <input type="search" name="tag" value="{{ tag }}" class="form-control" placeholder="タグで絞り込み">
   </div>
   <div class="col-auto">
     <button type="submit" class="btn btn-outline-secondary">絞り込み</button>
-    {% if tag %}<a class="btn btn-link" href="{% url 'research:diary_list' %}">クリア</a>{% endif %}
+    {% if tag %}
+      <a class="btn btn-link" href="{% url 'research:diary_list' %}{% if scope == 'lab' %}?scope=lab{% endif %}">クリア</a>
+    {% endif %}
   </div>
 </form>
 
 <div class="list-group">
   {% for entry in entries %}
-    <a class="list-group-item list-group-item-action" href="{% url 'research:diary_detail' entry.pk %}">
-      <div class="d-flex justify-content-between">
-        <strong>{{ entry.date }}</strong>
-        <span>
-          {% for t in entry.tag_list %}<span class="badge text-bg-info">{{ t }}</span>{% endfor %}
-        </span>
+    <a class="list-group-item list-group-item-action diary-row" href="{% url 'research:diary_detail' entry.pk %}">
+      <div class="d-flex justify-content-between align-items-start gap-3">
+        <div class="flex-grow-1">
+          <div class="d-flex align-items-center gap-2 mb-1">
+            <strong class="diary-row-title">{{ entry.date }}</strong>
+            {% if scope == 'lab' or entry.user_id != user.pk %}
+              <span class="text-secondary small">{{ entry.user.name }}</span>
+            {% endif %}
+            {% if entry.user_id == user.pk %}
+              {% if entry.is_public %}
+                <span class="badge text-bg-success">公開中</span>
+              {% else %}
+                <span class="badge text-bg-secondary">非公開</span>
+              {% endif %}
+            {% endif %}
+            {% for t in entry.tag_list %}<span class="badge text-bg-info">{{ t }}</span>{% endfor %}
+          </div>
+          <div class="text-secondary text-truncate">{{ entry.content }}</div>
+          <span class="diary-row-more small">詳細を見る</span>
+        </div>
+        <span class="diary-row-chevron" aria-hidden="true">›</span>
       </div>
-      <div class="text-secondary text-truncate">{{ entry.content }}</div>
     </a>
   {% empty %}
-    <div class="list-group-item text-secondary">該当する研究日記はありません。</div>
+    <div class="list-group-item text-secondary">
+      {% if scope == 'lab' %}
+        研究室内に公開された日記はまだありません。
+      {% else %}
+        該当する研究日記はありません。
+      {% endif %}
+    </div>
   {% endfor %}
 </div>
+
+{% if scope == 'lab' %}
+  <p class="text-secondary small mt-3 mb-0">
+    ここに出るのは、作成者が「研究室内に公開」を選んだ日記だけです。
+  </p>
+{% endif %}
 {% endblock %}
