@@ -43,3 +43,18 @@
 .diary-content {
   white-space: pre-wrap;
 }
+
+/* 在室状況のインジケータ（優先度2: 在室メンバー可視化） */
+.attendance-dot {
+  display: inline-block;
+  width: 0.6rem;
+  height: 0.6rem;
+  margin-right: 0.35rem;
+  border-radius: 50%;
+  background-color: var(--bs-secondary-bg, #ced4da);
+  border: 1px solid var(--bs-border-color, #adb5bd);
+}
+.attendance-dot.present {
+  background-color: var(--bs-success, #198754);
+  border-color: var(--bs-success, #198754);
+}

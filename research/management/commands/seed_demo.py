@@ -12,6 +12,13 @@ from django.db import transaction
 from django.utils import timezone
 
 from accounts.models import Role
+from community.models import (
+    AttendanceState,
+    AttendanceStatus,
+    CanteenMenu,
+    NewsPost,
+    NewsStatus,
+)
 from research.models import (
     ConferenceChecklistItem,
     ConferencePrep,
@@ -36,6 +43,13 @@ DEMO_DIARIES = [
     (3, "前処理のバグを修正。データ件数が想定より少なかった原因が判明した。", "実装, デバッグ"),
 ]
 
+DEMO_CANTEEN = "A定食: からあげ定食\nB定食: 鯖の味噌煮\n麺: 天ぷらうどん"
+
+DEMO_NEWS = [
+    ("ゼミ日程の変更について", "来週のゼミは水曜13時からに変更します。", True),
+    ("サーバー定期メンテナンスのお知らせ", "月末に計算サーバーを再起動します。", False),
+]
+
 DEMO_CHECKLIST = [
     ("要旨の執筆", True),
     ("実験結果の図表作成", True),
@@ -46,7 +60,7 @@ DEMO_CHECKLIST = [
 
 
 class Command(BaseCommand):
-    help = "ローカル動作確認用のデモユーザーと優先度①のデモデータを投入する（DEBUG時のみ）"
+    help = "ローカル動作確認用のデモユーザーと優先度①②のデモデータを投入する（DEBUG時のみ）"
 
     def add_arguments(self, parser):
         parser.add_argument(
@@ -78,17 +92,45 @@ class Command(BaseCommand):
             DiaryEntry.objects.filter(user=student).delete()
             ScheduleEvent.objects.filter(user=student).delete()
             ConferencePrep.objects.filter(user=student).delete()
+            CanteenMenu.objects.filter(date=timezone.localdate()).delete()
+            NewsPost.objects.filter(author__in=users.values()).delete()
             self.stdout.write("既存のデモデータを削除しました。")
 
+        # 優先度1: 研究支援系
         self._seed_diaries(student)
         prep = self._seed_conference(student)
         self._seed_events(student, prep)
+        # 優先度2: 情報共有・コミュニケーション系
+        self._seed_attendance(users)
+        self._seed_canteen()
+        self._seed_news(users["teacher@example.local"])
 
         self.stdout.write(self.style.SUCCESS("デモデータの投入が完了しました。"))
         self.stdout.write("")
         self.stdout.write("ログイン情報（開発用）:")
         for email, name, role, _ in DEMO_USERS:
             self.stdout.write(f"  {email} / {DEMO_PASSWORD}  （{name}・{Role(role).label}）")
+
+    def _seed_attendance(self, users: dict) -> None:
+        """教員を在室、学生を不在にして在室ボードの見え方を分かるようにする。"""
+        for email, state in (
+            ("teacher@example.local", AttendanceState.PRESENT),
+            ("student@example.local", AttendanceState.ABSENT),
+        ):
+            AttendanceStatus.objects.get_or_create(user=users[email], defaults={"status": state})
+
+    def _seed_canteen(self) -> None:
+        CanteenMenu.objects.get_or_create(date=timezone.localdate(), defaults={"menu_text": DEMO_CANTEEN})
+
+    def _seed_news(self, author) -> None:
+        for title, body, published in DEMO_NEWS:
+            post, created = NewsPost.objects.get_or_create(
+                title=title, author=author, defaults={"body": body}
+            )
+            if created and published:
+                post.status = NewsStatus.PUBLISHED
+                post.published_at = timezone.now()
+                post.save(update_fields=["status", "published_at"])
 
     def _seed_diaries(self, user) -> None:
         today = timezone.localdate()

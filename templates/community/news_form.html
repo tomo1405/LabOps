@@ -1,0 +1,25 @@
+{% extends "base.html" %}
+{% block title %}News投稿 | 研究室統合プラットフォーム{% endblock %}
+{% block heading %}News投稿{% endblock %}
+
+{% block content %}
+<div class="card">
+  <div class="card-body">
+    <form method="post">
+      {% csrf_token %}
+      {% for field in form %}
+        <div class="mb-3">
+          <label class="form-label" for="{{ field.id_for_label }}">{{ field.label }}</label>
+          {{ field }}
+          {% for error in field.errors %}<div class="text-danger small">{{ error }}</div>{% endfor %}
+        </div>
+      {% endfor %}
+      <div class="d-flex gap-2">
+        <button type="submit" name="draft" class="btn btn-outline-secondary">下書き保存</button>
+        <button type="submit" name="publish" class="btn btn-primary">公開する</button>
+        <a class="btn btn-link" href="{% url 'community:news_list' %}">キャンセル</a>
+      </div>
+    </form>
+  </div>
+</div>
+{% endblock %}

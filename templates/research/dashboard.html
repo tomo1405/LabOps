@@ -81,7 +81,61 @@
   </div>
 </div>
 
-<p class="text-secondary small mt-4 mb-0">
-  在室メンバー・学食メニュー・研究室Newsは優先度2の実装工程で追加予定です。
-</p>
+<div class="row g-3 mt-1">
+  <div class="col-lg-4">
+    <div class="card h-100">
+      <div class="card-header d-flex justify-content-between align-items-center">
+        <span>いま研究室にいる人</span>
+        <a class="small" href="{% url 'community:attendance_list' %}">一覧</a>
+      </div>
+      <ul class="list-group list-group-flush">
+        {% for member in present_members %}
+          <li class="list-group-item">
+            <span class="attendance-dot present"></span>{{ member.name }}
+            <span class="text-secondary small">{{ member.get_role_display }}</span>
+          </li>
+        {% empty %}
+          <li class="list-group-item text-secondary">在室中のメンバーはいません。</li>
+        {% endfor %}
+      </ul>
+    </div>
+  </div>
+
+  <div class="col-lg-4">
+    <div class="card h-100">
+      <div class="card-header d-flex justify-content-between align-items-center">
+        <span>本日の学食メニュー</span>
+        <a class="small" href="{% url 'community:canteen_today' %}">詳細</a>
+      </div>
+      <div class="card-body">
+        {% if today_menu %}
+          <div style="white-space: pre-wrap;">{{ today_menu.menu_text }}</div>
+        {% else %}
+          <span class="text-secondary">まだ登録されていません。</span>
+        {% endif %}
+      </div>
+    </div>
+  </div>
+
+  <div class="col-lg-4">
+    <div class="card h-100">
+      <div class="card-header d-flex justify-content-between align-items-center">
+        <span>研究室News</span>
+        <a class="small" href="{% url 'community:news_list' %}">一覧</a>
+      </div>
+      <ul class="list-group list-group-flush">
+        {% for post in latest_news %}
+          <li class="list-group-item">
+            <div class="fw-semibold">{{ post.title }}</div>
+            <div class="text-secondary small">
+              {{ post.author.name }}／{{ post.published_at|date:"n月j日" }}
+            </div>
+          </li>
+        {% empty %}
+          <li class="list-group-item text-secondary">公開済みのNewsはありません。</li>
+        {% endfor %}
+      </ul>
+    </div>
+  </div>
+</div>
 {% endblock %}

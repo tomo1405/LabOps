@@ -1,0 +1,48 @@
+{# 在室状況ボード（htmx での在室切替の差し替え対象）#}
+<div id="attendance-board">
+  <div class="card mb-3">
+    <div class="card-body d-flex justify-content-between align-items-center">
+      <div>
+        <div class="text-secondary small">自分の状態</div>
+        <span class="fs-5 fw-semibold">
+          {% if my_status.is_present %}在室{% else %}不在{% endif %}
+        </span>
+        {% if my_status %}
+          <span class="text-secondary small ms-2">{{ my_status.updated_at|date:"n/j H:i" }} 更新</span>
+        {% endif %}
+      </div>
+      <button type="button"
+              class="btn {% if my_status.is_present %}btn-outline-secondary{% else %}btn-success{% endif %}"
+              hx-post="{% url 'community:attendance_toggle' %}"
+              hx-target="#attendance-board"
+              hx-swap="outerHTML"
+              hx-headers='{"X-CSRFToken": "{{ csrf_token }}"}'>
+        {% if my_status.is_present %}不在にする{% else %}在室にする{% endif %}
+      </button>
+    </div>
+  </div>
+
+  <div class="card">
+    <div class="card-header">
+      研究室メンバー（在室 {{ present_count }} / {{ members|length }} 人）
+    </div>
+    <ul class="list-group list-group-flush">
+      {% for member in members %}
+        <li class="list-group-item d-flex justify-content-between align-items-center">
+          <span>
+            <span class="attendance-dot {% if member.status.is_present %}present{% endif %}"></span>
+            {{ member.user.name }}
+            {% if member.is_me %}<span class="badge text-bg-light">自分</span>{% endif %}
+            <span class="text-secondary small">{{ member.user.get_role_display }}</span>
+          </span>
+          <span class="text-secondary small">
+            {% if member.status.is_present %}在室{% else %}不在{% endif %}
+            {% if member.status %}（{{ member.status.updated_at|date:"n/j H:i" }}）{% endif %}
+          </span>
+        </li>
+      {% empty %}
+        <li class="list-group-item text-secondary">メンバーが登録されていません。</li>
+      {% endfor %}
+    </ul>
+  </div>
+</div>

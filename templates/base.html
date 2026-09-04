@@ -20,6 +20,9 @@
         <li class="nav-item"><a class="nav-link" href="{% url 'research:diary_list' %}">研究日記</a></li>
         <li class="nav-item"><a class="nav-link" href="{% url 'research:schedule' %}">スケジュール</a></li>
         <li class="nav-item"><a class="nav-link" href="{% url 'research:conference_list' %}">学会準備</a></li>
+        <li class="nav-item"><a class="nav-link" href="{% url 'community:attendance_list' %}">在室</a></li>
+        <li class="nav-item"><a class="nav-link" href="{% url 'community:canteen_today' %}">学食</a></li>
+        <li class="nav-item"><a class="nav-link" href="{% url 'community:news_list' %}">News</a></li>
       </ul>
       <div class="d-flex align-items-center gap-3">
         <span class="navbar-text">{{ user.name }}</span>

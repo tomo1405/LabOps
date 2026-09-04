@@ -1,11 +1,8 @@
-"""優先度2: 情報共有・コミュニケーション系のモデル（詳細設計書 2.2 / 2.9 / 2.10）。
-
-画面（在室可視化・学食メニュー・News投稿）は優先度2の実装工程で追加する。
-本ファイルではテーブル定義のみ先行して用意する。
-"""
+"""優先度2: 情報共有・コミュニケーション系のモデル（詳細設計書 2.2 / 2.9 / 2.10）。"""
 
 from django.conf import settings
 from django.db import models
+from django.utils import timezone
 
 
 class AttendanceState(models.TextChoices):
@@ -33,6 +30,16 @@ class AttendanceStatus(models.Model):
 
     def __str__(self) -> str:
         return f"{self.user.name}: {self.get_status_display()}"
+
+    @property
+    def is_present(self) -> bool:
+        return self.status == AttendanceState.PRESENT
+
+    def toggle(self) -> "AttendanceStatus":
+        """在室／不在を反転して保存する（詳細設計書 4章 /attendance/toggle）。"""
+        self.status = AttendanceState.ABSENT if self.is_present else AttendanceState.PRESENT
+        self.save(update_fields=["status", "updated_at"])
+        return self
 
 
 class MenuSource(models.TextChoices):
@@ -84,3 +91,19 @@ class NewsPost(models.Model):
 
     def __str__(self) -> str:
         return self.title
+
+    @property
+    def is_published(self) -> bool:
+        return self.status == NewsStatus.PUBLISHED
+
+    def publish(self) -> "NewsPost":
+        """下書きを公開する（詳細設計書 3.7 の手順2）。公開日時を記録する。
+
+        公開済みの記事に対しては何もしない（公開日時を上書きしない）。
+        """
+        if self.is_published:
+            return self
+        self.status = NewsStatus.PUBLISHED
+        self.published_at = timezone.now()
+        self.save(update_fields=["status", "published_at"])
+        return self

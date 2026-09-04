@@ -17,6 +17,8 @@ from django.shortcuts import get_object_or_404, redirect, render
 from django.utils import timezone
 from django.views.decorators.http import require_GET, require_POST
 
+from community.models import AttendanceState, AttendanceStatus, CanteenMenu, NewsPost, NewsStatus
+
 from .forms import (
     ConferenceChecklistItemForm,
     ConferencePrepForm,
@@ -27,6 +29,7 @@ from .models import ConferenceChecklistItem, ConferencePrep, DiaryEntry, Schedul
 
 DASHBOARD_DIARY_LIMIT = 5
 DASHBOARD_EVENT_LIMIT = 5
+DASHBOARD_NEWS_LIMIT = 3
 
 
 def _visible_events(user):
@@ -40,8 +43,13 @@ def _visible_events(user):
 @login_required
 @require_GET
 def dashboard(request: HttpRequest) -> HttpResponse:
-    """GET / : ダッシュボード（優先度1の情報を集約）。"""
+    """GET / : ダッシュボード。
+
+    基本設計書5章のとおり、研究支援（優先度1）の状況に加えて
+    お知らせ（学食メニュー・研究室News）と在室メンバーを集約する。
+    """
     now = timezone.now()
+    present_statuses = AttendanceStatus.objects.filter(status=AttendanceState.PRESENT).select_related("user")
     context = {
         "recent_diaries": DiaryEntry.objects.filter(user=request.user)[:DASHBOARD_DIARY_LIMIT],
         "upcoming_events": _visible_events(request.user)
@@ -50,6 +58,11 @@ def dashboard(request: HttpRequest) -> HttpResponse:
         "conference_preps": ConferencePrep.objects.filter(user=request.user).prefetch_related(
             "checklist_items"
         ),
+        "present_members": [s.user for s in present_statuses],
+        "today_menu": CanteenMenu.objects.filter(date=timezone.localdate()).first(),
+        "latest_news": NewsPost.objects.filter(status=NewsStatus.PUBLISHED).select_related("author")[
+            :DASHBOARD_NEWS_LIMIT
+        ],
     }
     return render(request, "research/dashboard.html", context)
 

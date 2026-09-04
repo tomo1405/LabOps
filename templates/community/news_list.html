@@ -1,0 +1,42 @@
+{% extends "base.html" %}
+{% block title %}研究室News | 研究室統合プラットフォーム{% endblock %}
+{% block heading %}研究室News{% endblock %}
+{% block heading_actions %}
+  <a class="btn btn-primary" href="{% url 'community:news_create' %}">新規投稿</a>
+{% endblock %}
+
+{% block content %}
+<div class="list-group">
+  {% for post in posts %}
+    <div class="list-group-item">
+      <div class="d-flex justify-content-between align-items-start">
+        <div>
+          <span class="fw-semibold">{{ post.title }}</span>
+          {% if post.is_published %}
+            <span class="badge text-bg-success">公開</span>
+          {% else %}
+            <span class="badge text-bg-secondary">下書き</span>
+          {% endif %}
+        </div>
+        {% if not post.is_published and post.author_id == user.pk %}
+          <form method="post" action="{% url 'community:news_publish' post.pk %}">
+            {% csrf_token %}
+            <button type="submit" class="btn btn-sm btn-outline-primary">公開する</button>
+          </form>
+        {% endif %}
+      </div>
+      <div class="text-secondary small">
+        {{ post.author.name }}
+        {% if post.published_at %}／{{ post.published_at|date:"Y年n月j日 H:i" }} 公開{% endif %}
+      </div>
+      <div class="mt-2" style="white-space: pre-wrap;">{{ post.body }}</div>
+    </div>
+  {% empty %}
+    <div class="list-group-item text-secondary">投稿がありません。</div>
+  {% endfor %}
+</div>
+
+<p class="text-secondary small mt-3 mb-0">
+  公開済みの記事のみ研究室HP側の表示対象になります（HPとの連携方式は実装時に決定）。
+</p>
+{% endblock %}
