@@ -22,10 +22,17 @@ urlpatterns = [
     # 学会準備
     path("conference/", views.conference_list, name="conference_list"),
     path("conference/new", views.conference_create, name="conference_create"),
+    path("conference/<int:pk>/edit", views.conference_update, name="conference_update"),
+    path("conference/<int:pk>/delete", views.conference_delete, name="conference_delete"),
     path("conference/<int:pk>/checklist", views.checklist_item_create, name="checklist_item_create"),
     path(
         "conference/<int:pk>/checklist/<int:item_id>/toggle",
         views.checklist_item_toggle,
         name="checklist_item_toggle",
+    ),
+    path(
+        "conference/<int:pk>/checklist/<int:item_id>/delete",
+        views.checklist_item_delete,
+        name="checklist_item_delete",
     ),
 ]

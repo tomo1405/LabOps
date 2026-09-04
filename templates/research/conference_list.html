@@ -11,9 +11,12 @@
     <div class="card-header d-flex justify-content-between align-items-center
                 {% if prep.is_deadline_near %}bg-warning-subtle{% elif prep.is_overdue %}bg-secondary-subtle{% endif %}">
       <span class="fw-semibold">{{ prep.conference_name }}</span>
-      <span class="small">
-        締切 {{ prep.deadline }}
-        {% if prep.is_overdue %}（締切超過）{% else %}（あと {{ prep.days_until_deadline }} 日）{% endif %}
+      <span class="small d-flex align-items-center gap-2">
+        <span>
+          締切 {{ prep.deadline }}
+          {% if prep.is_overdue %}（締切超過）{% else %}（あと {{ prep.days_until_deadline }} 日）{% endif %}
+        </span>
+        <a class="btn btn-sm btn-outline-secondary" href="{% url 'research:conference_update' prep.pk %}">編集</a>
       </span>
     </div>
     <div class="card-body" id="checklist-{{ prep.pk }}">

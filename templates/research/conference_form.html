@@ -1,6 +1,11 @@
 {% extends "base.html" %}
-{% block title %}学会準備の登録 | 研究室統合プラットフォーム{% endblock %}
-{% block heading %}学会準備の登録{% endblock %}
+{% block title %}{% if prep %}学会準備の編集{% else %}学会準備の登録{% endif %} | 研究室統合プラットフォーム{% endblock %}
+{% block heading %}{% if prep %}学会準備の編集{% else %}学会準備の登録{% endif %}{% endblock %}
+{% block heading_actions %}
+  {% if prep %}
+    <a class="btn btn-outline-danger" href="{% url 'research:conference_delete' prep.pk %}">削除</a>
+  {% endif %}
+{% endblock %}
 
 {% block content %}
 <div class="row">
@@ -15,9 +20,14 @@
           {% for error in field.errors %}<div class="text-danger small">{{ error }}</div>{% endfor %}
         </div>
       {% endfor %}
-      <button type="submit" class="btn btn-primary">登録</button>
+      <button type="submit" class="btn btn-primary">{% if prep %}保存{% else %}登録{% endif %}</button>
       <a class="btn btn-link" href="{% url 'research:conference_list' %}">キャンセル</a>
     </form>
+    {% if prep %}
+      <p class="text-secondary small mt-3 mb-0">
+        チェックリスト項目の追加・削除は一覧画面から行います。ここで入力した項目は既存のリストに追加されます。
+      </p>
+    {% endif %}
   </div>
 </div>
 {% endblock %}

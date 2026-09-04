@@ -7,4 +7,10 @@
          hx-swap="outerHTML"
          hx-headers='{"X-CSRFToken": "{{ csrf_token }}"}'>
   <label class="form-check-label" for="item-{{ item.pk }}">{{ item.item }}</label>
+  <button type="button" class="btn btn-sm btn-link text-danger py-0 checklist-delete"
+          hx-post="{% url 'research:checklist_item_delete' item.conference_id item.pk %}"
+          hx-target="#checklist-{{ item.conference_id }}"
+          hx-swap="innerHTML"
+          hx-confirm="この項目を削除しますか？"
+          hx-headers='{"X-CSRFToken": "{{ csrf_token }}"}'>削除</button>
 </li>

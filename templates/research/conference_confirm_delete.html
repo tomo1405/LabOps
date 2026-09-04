@@ -1,0 +1,28 @@
+{% extends "base.html" %}
+{% block title %}学会準備の削除 | 研究室統合プラットフォーム{% endblock %}
+{% block heading %}学会準備の削除{% endblock %}
+
+{% block content %}
+<div class="row">
+  <div class="col-lg-8">
+    <div class="card border-danger">
+      <div class="card-header text-bg-danger">この学会準備を削除しますか？</div>
+      <div class="card-body">
+        <div class="fw-semibold">{{ prep.conference_name }}</div>
+        <div class="text-secondary small">締切 {{ prep.deadline }}</div>
+        <div class="mt-2">チェックリスト {{ prep.checklist_items.count }} 件も一緒に削除されます。</div>
+      </div>
+      <div class="card-footer">
+        <form method="post">
+          {% csrf_token %}
+          <button type="submit" class="btn btn-danger">削除する</button>
+          <a class="btn btn-link" href="{% url 'research:conference_update' prep.pk %}">キャンセル</a>
+        </form>
+      </div>
+    </div>
+    <p class="text-secondary small mt-3 mb-0">
+      この学会に紐付けた予定は削除されず、紐付けだけが解除されます。
+    </p>
+  </div>
+</div>
+{% endblock %}

@@ -33,6 +33,8 @@ class LoginRequiredTests(TestCase):
             reverse("research:schedule_event_delete", args=[1]),
             reverse("research:conference_list"),
             reverse("research:conference_create"),
+            reverse("research:conference_update", args=[1]),
+            reverse("research:conference_delete", args=[1]),
         ]
         for url in urls:
             with self.subTest(url=url):
@@ -415,6 +417,106 @@ class ConferenceViewTests(AuthenticatedTestCase):
         )
         self.assertEqual(response.status_code, 404)
         self.assertEqual(prep.checklist_items.count(), 0)
+
+
+class ConferenceUpdateDeleteTests(AuthenticatedTestCase):
+    """学会準備の更新・削除とチェック項目の削除。"""
+
+    def setUp(self):
+        super().setUp()
+        self.prep = ConferencePrep.objects.create(
+            conference_name="テスト学会",
+            deadline=timezone.localdate() + timedelta(days=7),
+            user=self.user,
+        )
+        self.item = ConferenceChecklistItem.objects.create(conference=self.prep, item="要旨執筆")
+
+    def test_edit_form_shows_current_values(self):
+        response = self.client.get(reverse("research:conference_update", args=[self.prep.pk]))
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(response, "テスト学会")
+
+    def test_update_changes_name_and_deadline(self):
+        new_deadline = timezone.localdate() + timedelta(days=30)
+        response = self.client.post(
+            reverse("research:conference_update", args=[self.prep.pk]),
+            {
+                "conference_name": "テスト学会（変更後）",
+                "deadline": new_deadline.isoformat(),
+                "checklist_items": "",
+            },
+        )
+        self.assertRedirects(response, reverse("research:conference_list"))
+        self.prep.refresh_from_db()
+        self.assertEqual(self.prep.conference_name, "テスト学会（変更後）")
+        self.assertEqual(self.prep.deadline, new_deadline)
+        self.assertEqual(ConferencePrep.objects.count(), 1)
+
+    def test_update_appends_checklist_items_without_removing_existing(self):
+        self.client.post(
+            reverse("research:conference_update", args=[self.prep.pk]),
+            {
+                "conference_name": "テスト学会",
+                "deadline": self.prep.deadline.isoformat(),
+                "checklist_items": "図表作成\nリハーサル",
+            },
+        )
+        self.assertEqual(
+            list(self.prep.checklist_items.values_list("item", flat=True)),
+            ["要旨執筆", "図表作成", "リハーサル"],
+        )
+
+    def test_cannot_edit_other_members_prep(self):
+        prep = ConferencePrep.objects.create(
+            conference_name="他人の学会", deadline=timezone.localdate(), user=self.other
+        )
+        response = self.client.post(
+            reverse("research:conference_update", args=[prep.pk]),
+            {"conference_name": "書き換え", "deadline": "2026-12-01", "checklist_items": ""},
+        )
+        self.assertEqual(response.status_code, 404)
+        prep.refresh_from_db()
+        self.assertEqual(prep.conference_name, "他人の学会")
+
+    def test_delete_confirmation_page_does_not_delete(self):
+        response = self.client.get(reverse("research:conference_delete", args=[self.prep.pk]))
+        self.assertEqual(response.status_code, 200)
+        self.assertTrue(ConferencePrep.objects.filter(pk=self.prep.pk).exists())
+
+    def test_delete_removes_prep_and_checklist_items(self):
+        response = self.client.post(reverse("research:conference_delete", args=[self.prep.pk]))
+        self.assertRedirects(response, reverse("research:conference_list"))
+        self.assertFalse(ConferencePrep.objects.filter(pk=self.prep.pk).exists())
+        self.assertFalse(ConferenceChecklistItem.objects.filter(pk=self.item.pk).exists())
+
+    def test_delete_keeps_linked_schedule_event(self):
+        """紐付けた予定は残り、学会への紐付けだけが解除される。"""
+        event = ScheduleEvent.objects.create(
+            user=self.user,
+            title="原稿を仕上げる",
+            start_at=timezone.now() + timedelta(days=1),
+            event_type=EventType.TASK,
+            conference=self.prep,
+        )
+        self.client.post(reverse("research:conference_delete", args=[self.prep.pk]))
+        event.refresh_from_db()
+        self.assertIsNone(event.conference)
+
+    def test_delete_checklist_item(self):
+        response = self.client.post(
+            reverse("research:checklist_item_delete", args=[self.prep.pk, self.item.pk])
+        )
+        self.assertEqual(response.status_code, 200)
+        self.assertFalse(ConferenceChecklistItem.objects.filter(pk=self.item.pk).exists())
+
+    def test_cannot_delete_other_members_checklist_item(self):
+        prep = ConferencePrep.objects.create(
+            conference_name="他人の学会", deadline=timezone.localdate(), user=self.other
+        )
+        item = ConferenceChecklistItem.objects.create(conference=prep, item="他人の項目")
+        response = self.client.post(reverse("research:checklist_item_delete", args=[prep.pk, item.pk]))
+        self.assertEqual(response.status_code, 404)
+        self.assertTrue(ConferenceChecklistItem.objects.filter(pk=item.pk).exists())
 
 
 class DashboardViewTests(AuthenticatedTestCase):

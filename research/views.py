@@ -328,6 +328,60 @@ def conference_create(request: HttpRequest) -> HttpResponse:
 
 
 @login_required
+def conference_update(request: HttpRequest, pk: int) -> HttpResponse:
+    """GET/POST /conference/<id>/edit : 学会名・締切日の編集（本人分のみ）。
+
+    チェックリストは一覧画面から個別に追加・削除するため、このフォームでは扱わない。
+    """
+    prep = get_object_or_404(ConferencePrep, pk=pk, user=request.user)
+    if request.method == "POST":
+        form = ConferencePrepForm(request.POST, instance=prep)
+        if form.is_valid():
+            form.save()
+            ConferenceChecklistItem.objects.bulk_create(
+                [
+                    ConferenceChecklistItem(conference=prep, item=item)
+                    for item in form.initial_checklist_items()
+                ]
+            )
+            messages.success(request, "学会準備を更新しました。")
+            return redirect("research:conference_list")
+    else:
+        form = ConferencePrepForm(instance=prep)
+    return render(request, "research/conference_form.html", {"form": form, "prep": prep})
+
+
+@login_required
+def conference_delete(request: HttpRequest, pk: int) -> HttpResponse:
+    """GET/POST /conference/<id>/delete : 学会準備の削除（GETは確認画面）。
+
+    チェックリスト項目も一緒に削除される。
+    """
+    prep = get_object_or_404(ConferencePrep, pk=pk, user=request.user)
+    if request.method == "POST":
+        prep.delete()
+        messages.success(request, "学会準備を削除しました。")
+        return redirect("research:conference_list")
+    return render(request, "research/conference_confirm_delete.html", {"prep": prep})
+
+
+@login_required
+@require_POST
+def checklist_item_delete(request: HttpRequest, pk: int, item_id: int) -> HttpResponse:
+    """POST /conference/<id>/checklist/<item_id>/delete : チェック項目の削除（htmx）。"""
+    item = get_object_or_404(
+        ConferenceChecklistItem, pk=item_id, conference_id=pk, conference__user=request.user
+    )
+    prep = item.conference
+    item.delete()
+    return render(
+        request,
+        "research/partials/checklist.html",
+        {"prep": prep, "item_form": ConferenceChecklistItemForm()},
+    )
+
+
+@login_required
 @require_POST
 def checklist_item_toggle(request: HttpRequest, pk: int, item_id: int) -> HttpResponse:
     """POST /conference/<id>/checklist/<item_id>/toggle : チェック切替（htmx）。"""
