@@ -23,12 +23,14 @@ from community.models import AttendanceState, AttendanceStatus, CanteenMenu, New
 from .forms import (
     ConferenceChecklistItemForm,
     ConferencePrepForm,
+    DiaryAttachmentForm,
     DiaryEntryForm,
     ScheduleEventForm,
 )
 from .models import (
     ConferenceChecklistItem,
     ConferencePrep,
+    DiaryAttachment,
     DiaryEntry,
     DiaryVisibility,
     ScheduleEvent,
@@ -137,8 +139,12 @@ def diary_detail(request: HttpRequest, pk: int) -> HttpResponse:
 
     本人の記録に加えて、研究室内に公開された他メンバーの記録も閲覧できる。
     """
-    entry = get_object_or_404(_visible_diaries(request.user), pk=pk)
-    return render(request, "research/diary_detail.html", {"entry": entry})
+    entry = get_object_or_404(_visible_diaries(request.user).prefetch_related("attachments"), pk=pk)
+    return render(
+        request,
+        "research/diary_detail.html",
+        {"entry": entry, "attachment_form": DiaryAttachmentForm()},
+    )
 
 
 @login_required
@@ -168,6 +174,42 @@ def diary_delete(request: HttpRequest, pk: int) -> HttpResponse:
         messages.success(request, "研究日記を削除しました。")
         return redirect("research:diary_list")
     return render(request, "research/diary_confirm_delete.html", {"entry": entry})
+
+
+@login_required
+@require_POST
+def diary_attachment_create(request: HttpRequest, pk: int) -> HttpResponse:
+    """POST /diary/<id>/attachments : 添付ファイルの追加（本人の日記のみ）。"""
+    entry = get_object_or_404(DiaryEntry, pk=pk, user=request.user)
+    form = DiaryAttachmentForm(request.POST, request.FILES)
+    if form.is_valid():
+        attachment = form.save(commit=False)
+        attachment.diary = entry
+        attachment.original_name = request.FILES["file"].name
+        attachment.save()
+        messages.success(request, f"「{attachment.original_name}」を添付しました。")
+        return redirect("research:diary_detail", pk=entry.pk)
+
+    entry = _visible_diaries(request.user).prefetch_related("attachments").get(pk=entry.pk)
+    return render(
+        request,
+        "research/diary_detail.html",
+        {"entry": entry, "attachment_form": form},
+        status=400,
+    )
+
+
+@login_required
+@require_POST
+def diary_attachment_delete(request: HttpRequest, pk: int, attachment_id: int) -> HttpResponse:
+    """POST /diary/<id>/attachments/<attachment_id>/delete : 添付の削除。"""
+    attachment = get_object_or_404(DiaryAttachment, pk=attachment_id, diary_id=pk, diary__user=request.user)
+    name = attachment.original_name
+    # 実ファイルも消す（save=False でDB更新は delete() に任せる）
+    attachment.file.delete(save=False)
+    attachment.delete()
+    messages.success(request, f"「{name}」を削除しました。")
+    return redirect("research:diary_detail", pk=pk)
 
 
 # --- 研究スケジュール -----------------------------------------------------

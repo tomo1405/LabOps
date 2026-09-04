@@ -72,6 +72,43 @@ class DiaryEntry(models.Model):
         return mark_safe(render_markdown(self.content))  # noqa: S308 — render_markdown でサニタイズ済み
 
 
+def diary_attachment_path(instance: "DiaryAttachment", filename: str) -> str:
+    """添付ファイルの保存先。日記ごとにディレクトリを分ける。"""
+    return f"diary/{instance.diary_id}/{filename}"
+
+
+class DiaryAttachment(models.Model):
+    """研究日記の添付ファイル（実験画像・グラフ・資料など）。
+
+    詳細設計書2.3にない追加テーブル。日記1件に複数添付できる。
+    """
+
+    IMAGE_SUFFIXES = (".png", ".jpg", ".jpeg", ".gif", ".webp")
+
+    diary = models.ForeignKey(
+        DiaryEntry,
+        on_delete=models.CASCADE,
+        related_name="attachments",
+        verbose_name="研究日記",
+    )
+    file = models.FileField("ファイル", upload_to=diary_attachment_path)
+    original_name = models.CharField("元のファイル名", max_length=255)
+    uploaded_at = models.DateTimeField("添付日時", auto_now_add=True)
+
+    class Meta:
+        verbose_name = "研究日記の添付ファイル"
+        verbose_name_plural = "研究日記の添付ファイル"
+        ordering = ["uploaded_at", "id"]
+
+    def __str__(self) -> str:
+        return self.original_name
+
+    @property
+    def is_image(self) -> bool:
+        """画像として画面に埋め込めるか。"""
+        return self.original_name.lower().endswith(self.IMAGE_SUFFIXES)
+
+
 class ConferencePrep(models.Model):
     """学会準備（詳細設計書 2.5 ConferencePrep）。"""
 

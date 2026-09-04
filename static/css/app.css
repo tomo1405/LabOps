@@ -133,3 +133,11 @@
   padding: 0.35rem 0.6rem;
 }
 .markdown-body img { max-width: 100%; height: auto; }
+
+/* 研究日記の添付ファイル */
+.attachment-image {
+  max-width: 100%;
+  max-height: 420px;
+  border: 1px solid var(--bs-border-color, #dee2e6);
+  border-radius: 0.25rem;
+}

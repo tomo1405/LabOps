@@ -3,7 +3,13 @@
 from django import forms
 from django.utils import timezone
 
-from .models import ConferenceChecklistItem, ConferencePrep, DiaryEntry, ScheduleEvent
+from .models import (
+    ConferenceChecklistItem,
+    ConferencePrep,
+    DiaryAttachment,
+    DiaryEntry,
+    ScheduleEvent,
+)
 
 
 class DiaryEntryForm(forms.ModelForm):
@@ -24,6 +30,27 @@ class DiaryEntryForm(forms.ModelForm):
         self.fields[
             "content"
         ].help_text = "Markdownで書けます（## 見出し / - 箇条書き / **強調** / `コード` / 表）"
+
+
+class DiaryAttachmentForm(forms.ModelForm):
+    """研究日記への添付フォーム。
+
+    研究室内利用のため拡張子の制限は設けず、サイズ上限のみを課す。
+    """
+
+    MAX_SIZE_MB = 10
+
+    class Meta:
+        model = DiaryAttachment
+        fields = ["file"]
+        widgets = {"file": forms.ClearableFileInput(attrs={"class": "form-control"})}
+
+    def clean_file(self):
+        uploaded = self.cleaned_data["file"]
+        limit = self.MAX_SIZE_MB * 1024 * 1024
+        if uploaded.size > limit:
+            raise forms.ValidationError(f"ファイルサイズが上限（{self.MAX_SIZE_MB}MB）を超えています。")
+        return uploaded
 
 
 class ScheduleEventForm(forms.ModelForm):

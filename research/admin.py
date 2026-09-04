@@ -1,12 +1,25 @@
 from django.contrib import admin
 
-from .models import ConferenceChecklistItem, ConferencePrep, DiaryEntry, ScheduleEvent
+from .models import (
+    ConferenceChecklistItem,
+    ConferencePrep,
+    DiaryAttachment,
+    DiaryEntry,
+    ScheduleEvent,
+)
+
+
+class DiaryAttachmentInline(admin.TabularInline):
+    model = DiaryAttachment
+    extra = 0
+    readonly_fields = ("original_name", "uploaded_at")
 
 
 @admin.register(DiaryEntry)
 class DiaryEntryAdmin(admin.ModelAdmin):
-    list_display = ("date", "user", "tags", "updated_at")
-    list_filter = ("user", "date")
+    list_display = ("date", "user", "visibility", "tags", "updated_at")
+    list_filter = ("user", "visibility", "date")
+    inlines = [DiaryAttachmentInline]
     search_fields = ("content", "tags")
     date_hierarchy = "date"
 
