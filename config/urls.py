@@ -1,7 +1,5 @@
 """ルーティング（詳細設計書 4章「画面・エンドポイント仕様」に対応）。"""
 
-from django.conf import settings
-from django.conf.urls.static import static
 from django.contrib import admin
 from django.urls import include, path
 
@@ -12,6 +10,6 @@ urlpatterns = [
     path("", include("community.urls")),
 ]
 
-# 開発サーバーでは添付ファイルをDjangoから配信する（本番は nginx が /media/ を配信）
-if settings.DEBUG:
-    urlpatterns += static(settings.MEDIA_URL, document_root=settings.MEDIA_ROOT)
+# 添付ファイル（MEDIA_ROOT）はここで公開しない。
+# 非公開日記の添付が権限なしで取得されるのを防ぐため、開発・本番ともに
+# 認可付きビュー research:diary_attachment_download 経由でのみ配信する。

@@ -4,10 +4,12 @@ from html import unescape
 
 from django.conf import settings
 from django.db import models
+from django.urls import reverse
 from django.utils import timezone
 from django.utils.html import strip_tags
 from django.utils.safestring import mark_safe
 
+from . import attachments
 from .markdown_render import render_markdown
 
 
@@ -83,8 +85,6 @@ class DiaryAttachment(models.Model):
     詳細設計書2.3にない追加テーブル。日記1件に複数添付できる。
     """
 
-    IMAGE_SUFFIXES = (".png", ".jpg", ".jpeg", ".gif", ".webp")
-
     diary = models.ForeignKey(
         DiaryEntry,
         on_delete=models.CASCADE,
@@ -106,7 +106,21 @@ class DiaryAttachment(models.Model):
     @property
     def is_image(self) -> bool:
         """画像として画面に埋め込めるか。"""
-        return self.original_name.lower().endswith(self.IMAGE_SUFFIXES)
+        return attachments.is_image_name(self.original_name)
+
+    @property
+    def content_type(self) -> str:
+        """配信時に使う Content-Type（クライアント申告値は使わない）。"""
+        return attachments.content_type_for(self.original_name)
+
+    @property
+    def download_url(self) -> str:
+        """認可付きダウンロードURL。
+
+        実体は外部から直接参照できない場所に置き、必ずこのURL経由で配信する
+        （非公開日記の添付が権限なしで取得されるのを防ぐ）。
+        """
+        return reverse("research:diary_attachment_download", args=[self.diary_id, self.pk])
 
 
 class DiaryComment(models.Model):

@@ -16,6 +16,11 @@ urlpatterns = [
     path("diary/<int:pk>/delete", views.diary_delete, name="diary_delete"),
     path("diary/<int:pk>/attachments", views.diary_attachment_create, name="diary_attachment_create"),
     path(
+        "diary/<int:pk>/attachments/<int:attachment_id>/file",
+        views.diary_attachment_download,
+        name="diary_attachment_download",
+    ),
+    path(
         "diary/<int:pk>/attachments/<int:attachment_id>/delete",
         views.diary_attachment_delete,
         name="diary_attachment_delete",
