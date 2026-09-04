@@ -155,6 +155,13 @@
   filter: invert(1) hue-rotate(180deg);
 }
 
+/* ヘッダーは常に画面上部に固定する */
+.navbar {
+  position: sticky;
+  top: 0;
+  z-index: 1030;
+}
+
 /* ナビゲーションの現在地表示（ロゴのターコイズをアクセントに使う） */
 .navbar .nav-link {
   padding-left: 0.6rem;
@@ -189,6 +196,9 @@
   min-height: 8rem;
   display: flex;
   flex-direction: column;
+  /* 列幅を超える内容でグリッドが押し広げられないようにする */
+  min-width: 0;
+  overflow: hidden;
 }
 .schedule-day.today {
   border-color: #2ec4b6;
@@ -202,6 +212,14 @@
   justify-content: space-between;
   align-items: center;
   gap: 0.25rem;
+  min-width: 0;
+}
+.schedule-day.today .schedule-day-head {
+  background-color: rgba(46, 196, 182, 0.12);
+  font-weight: 600;
+}
+.schedule-day-head a {
+  white-space: nowrap;
 }
 .schedule-day-events {
   list-style: none;
@@ -217,6 +235,8 @@
   border-radius: 0.2rem;
   padding: 0.3rem 0.45rem;
   font-size: 0.85rem;
+  min-width: 0;
+  overflow-wrap: anywhere;
 }
 .schedule-slot.milestone {
   border-left-color: var(--bs-danger, #dc3545);
@@ -230,10 +250,37 @@
 .schedule-slot-title {
   display: block;
   font-weight: 600;
+  overflow-wrap: anywhere;
 }
 .schedule-slot-meta {
   display: block;
   font-size: 0.75rem;
+  overflow-wrap: anywhere;
+}
+.schedule-slot-meta .badge {
+  max-width: 100%;
+  text-align: left;
+}
+/* 日表示は幅に余裕があるので折り返す */
+.schedule-days.day .schedule-slot-meta .badge {
+  white-space: normal;
+}
+/* 週表示は列が狭いため、はみ出さずに末尾を省略する */
+.schedule-days.week .schedule-slot-meta .badge {
+  display: inline-block;
+  max-width: 100%;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  vertical-align: bottom;
+}
+.schedule-days.week .schedule-slot-meta > * {
+  display: block;
+}
+/* 週表示は列が狭いので、予定が多い日は列内でスクロールさせる */
+.schedule-days.week .schedule-day-events {
+  max-height: 16rem;
+  overflow-y: auto;
 }
 .schedule-empty {
   color: var(--bs-secondary-color, #6c757d);

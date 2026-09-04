@@ -4,7 +4,7 @@
     <div class="schedule-day {% if day.is_today %}today{% endif %}">
       <div class="schedule-day-head">
         <a href="{{ day.url }}">{{ day.date|date:"n/j" }}（{{ day.weekday }}）</a>
-        {% if day.is_today %}<span class="badge text-bg-primary">今日</span>{% endif %}
+        {% if day.is_today and view == 'day' %}<span class="badge text-bg-primary">今日</span>{% endif %}
       </div>
       <ul class="schedule-day-events">
         {% for event in day.events %}
@@ -21,9 +21,14 @@
               {% endif %}
               {% with names=event.participants.all %}
                 {% if names %}
-                  <span class="text-secondary">
-                    参加 {% for p in names %}{{ p.name }}{% if not forloop.last %}, {% endif %}{% endfor %}
-                  </span>
+                  {% if view == 'day' %}
+                    <span class="text-secondary">
+                      参加 {% for p in names %}{{ p.name }}{% if not forloop.last %}, {% endif %}{% endfor %}
+                    </span>
+                  {% else %}
+                    {# 週表示は列が狭いので人数だけ出す。氏名は下の一覧と日表示で確認できる #}
+                    <span class="text-secondary">参加 {{ names|length }}人</span>
+                  {% endif %}
                 {% endif %}
               {% endwith %}
             </span>

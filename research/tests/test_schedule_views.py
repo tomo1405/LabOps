@@ -113,6 +113,47 @@ class ScheduleViewSwitchTests(TestCase):
         self.assertEqual(response.context["days"][0]["date"], self.anchor)
 
 
+class ScheduleWeekLayoutTests(TestCase):
+    """週表示は列が狭いため、日表示とは出し分ける（レイアウト崩れ対策）。"""
+
+    @classmethod
+    def setUpTestData(cls):
+        cls.user = User.objects.create_user(email="me@example.com", password="pw12345!", name="本人")
+        cls.mate = User.objects.create_user(email="mate@example.com", password="pw12345!", name="同僚")
+
+    def setUp(self):
+        self.client.force_login(self.user)
+        self.event = ScheduleEvent.objects.create(
+            user=self.user,
+            title="打ち合わせ",
+            start_at=at(timezone.localdate(), 10),
+            event_type=EventType.TASK,
+        )
+        self.event.participants.add(self.mate)
+
+    def _html(self, view: str) -> str:
+        response = self.client.get(reverse("research:schedule"), {"view": view})
+        return response.content.decode()
+
+    def test_today_badge_only_in_day_view(self):
+        """週表示では「今日」バッジを出さない（列が狭く折り返して崩れるため）。"""
+        self.assertNotIn('<span class="badge text-bg-primary">今日</span>', self._html("week"))
+        self.assertIn('<span class="badge text-bg-primary">今日</span>', self._html("day"))
+
+    def test_today_column_is_still_marked_in_week_view(self):
+        """バッジを出さない代わりに、今日の列には today クラスが付く。"""
+        self.assertIn('class="schedule-day today"', self._html("week"))
+
+    def test_participants_are_summarised_in_week_view(self):
+        """週表示は人数のみ、日表示は氏名を出す。"""
+        week = self._html("week")
+        self.assertIn("参加 1人", week)
+        self.assertNotIn("参加 同僚", week)
+
+        day = self._html("day")
+        self.assertIn("同僚", day)
+
+
 class ScheduleParticipantTests(TestCase):
     """参加者に指定された人のスケジュールにも予定が出る。"""
 
