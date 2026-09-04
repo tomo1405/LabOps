@@ -85,6 +85,18 @@ class NewsPostTests(TestCase):
         self.assertEqual(post.status, NewsStatus.PUBLISHED)
         self.assertIsNotNone(post.published_at)
 
+    def test_drafts_are_listed_before_published_posts(self):
+        """未公開の下書きを先頭に並べる（NULL の並び位置はDB既定に依存させない）。"""
+        published = NewsPost.objects.create(
+            title="公開済み",
+            body="本文",
+            author=self.user,
+            status=NewsStatus.PUBLISHED,
+            published_at=timezone.now(),
+        )
+        draft = NewsPost.objects.create(title="下書き", body="本文", author=self.user)
+        self.assertEqual(list(NewsPost.objects.all()), [draft, published])
+
     def test_publish_is_idempotent(self):
         """公開済みの記事を再度公開しても、公開日時は変わらない。"""
         post = NewsPost.objects.create(title="お知らせ", body="本文", author=self.user)

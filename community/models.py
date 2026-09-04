@@ -87,7 +87,9 @@ class NewsPost(models.Model):
     class Meta:
         verbose_name = "News記事"
         verbose_name_plural = "News記事"
-        ordering = ["-published_at", "-id"]
+        # 公開日時の新しい順。未公開（published_at が NULL）の下書きは先頭に置く。
+        # NULL の並び位置は PostgreSQL と SQLite で既定が逆になるため、明示的に指定する。
+        ordering = [models.F("published_at").desc(nulls_first=True), "-id"]
 
     def __str__(self) -> str:
         return self.title
