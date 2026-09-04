@@ -226,8 +226,9 @@ class ConferenceChecklistItem(models.Model):
 
 
 class EventType(models.TextChoices):
-    MILESTONE = "milestone", "マイルストーン"
+    APPOINTMENT = "appointment", "予定"
     TASK = "task", "タスク"
+    MILESTONE = "milestone", "マイルストーン"
 
 
 class ScheduleEvent(models.Model):
@@ -245,7 +246,13 @@ class ScheduleEvent(models.Model):
     title = models.CharField("タイトル", max_length=100)
     start_at = models.DateTimeField("開始日時")
     end_at = models.DateTimeField("終了日時", null=True, blank=True)
-    event_type = models.CharField("種別", max_length=10, choices=EventType.choices)
+    event_type = models.CharField(
+        "種別",
+        max_length=15,
+        choices=EventType.choices,
+        default=EventType.APPOINTMENT,
+        help_text="打ち合わせなど時間が決まっているものは「予定」",
+    )
     conference = models.ForeignKey(
         ConferencePrep,
         on_delete=models.SET_NULL,

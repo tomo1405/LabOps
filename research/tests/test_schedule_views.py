@@ -113,6 +113,70 @@ class ScheduleViewSwitchTests(TestCase):
         self.assertEqual(response.context["days"][0]["date"], self.anchor)
 
 
+class ScheduleEventTypeTests(TestCase):
+    """種別（予定・タスク・マイルストーン）。"""
+
+    @classmethod
+    def setUpTestData(cls):
+        cls.user = User.objects.create_user(email="me@example.com", password="pw12345!", name="本人")
+
+    def setUp(self):
+        self.client.force_login(self.user)
+
+    def test_three_types_are_available(self):
+        self.assertEqual(
+            [(value, label) for value, label in EventType.choices],
+            [("appointment", "予定"), ("task", "タスク"), ("milestone", "マイルストーン")],
+        )
+
+    def test_default_type_is_appointment(self):
+        """種別を指定せずに作った予定は「予定」になる。"""
+        event = ScheduleEvent.objects.create(
+            user=self.user, title="打ち合わせ", start_at=at(timezone.localdate(), 10)
+        )
+        self.assertEqual(event.event_type, EventType.APPOINTMENT)
+        self.assertEqual(event.get_event_type_display(), "予定")
+
+    def test_create_event_with_appointment_type(self):
+        start = timezone.localtime(timezone.now() + timedelta(days=1))
+        self.client.post(
+            reverse("research:schedule_event_create"),
+            {
+                "title": "指導教員との面談",
+                "start_at": start.strftime("%Y-%m-%dT%H:%M"),
+                "end_at": "",
+                "event_type": EventType.APPOINTMENT,
+                "conference": "",
+            },
+        )
+        event = ScheduleEvent.objects.get(title="指導教員との面談")
+        self.assertEqual(event.event_type, EventType.APPOINTMENT)
+
+    def test_form_offers_appointment_as_initial_choice(self):
+        response = self.client.get(reverse("research:schedule"))
+        html = response.content.decode()
+        self.assertIn('<option value="appointment"', html)
+        self.assertIn(">予定</option>", html)
+
+    def test_type_is_reflected_in_display_class(self):
+        """カレンダー上の色分けに使うクラス名が種別ごとに変わる。"""
+        for event_type, expected in (
+            (EventType.APPOINTMENT, "schedule-slot appointment"),
+            (EventType.TASK, "schedule-slot task"),
+            (EventType.MILESTONE, "schedule-slot milestone"),
+        ):
+            with self.subTest(event_type=event_type):
+                ScheduleEvent.objects.all().delete()
+                ScheduleEvent.objects.create(
+                    user=self.user,
+                    title="種別の確認",
+                    start_at=at(timezone.localdate(), 10),
+                    event_type=event_type,
+                )
+                response = self.client.get(reverse("research:schedule"), {"view": "day"})
+                self.assertIn(expected, response.content.decode())
+
+
 class ScheduleWeekLayoutTests(TestCase):
     """週表示は列が狭いため、日表示とは出し分ける（レイアウト崩れ対策）。"""
 

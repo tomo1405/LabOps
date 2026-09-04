@@ -56,7 +56,7 @@
           {% endwith %}
         </span>
         <span class="d-flex align-items-center gap-2 flex-shrink-0">
-          <span class="badge text-bg-info">{{ event.get_event_type_display }}</span>
+          <span class="badge {% if event.event_type == 'milestone' %}text-bg-warning{% elif event.event_type == 'task' %}text-bg-success{% else %}text-bg-info{% endif %}">{{ event.get_event_type_display }}</span>
           {% if event.is_shared or event.user_id == user.pk %}
             <a class="btn btn-sm btn-outline-secondary"
                href="{% url 'research:schedule_event_update' event.pk %}?view={{ view }}">編集</a>

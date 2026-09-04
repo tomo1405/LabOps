@@ -164,10 +164,10 @@ class Command(BaseCommand):
 
         demo_events = [
             # (タイトル, 開始, 終了, 種別, 学会紐付け, 研究室共通か)
-            ("研究ミーティング", at(1, 10), at(1, 11), EventType.TASK, None, False),
+            ("研究ミーティング", at(1, 10), at(1, 11), EventType.APPOINTMENT, None, False),
             ("原稿の初稿を仕上げる", at(5, 9), at(5, 18), EventType.TASK, prep, False),
             ("学会原稿 提出締切", at(10, 23), None, EventType.MILESTONE, prep, False),
-            ("研究室全体ゼミ", at(3, 13), at(3, 15), EventType.TASK, None, True),
+            ("研究室全体ゼミ", at(3, 13), at(3, 15), EventType.APPOINTMENT, None, True),
         ]
         for title, start_at, end_at, event_type, conference, is_shared in demo_events:
             ScheduleEvent.objects.get_or_create(

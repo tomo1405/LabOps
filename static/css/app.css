@@ -30,6 +30,11 @@
   text-overflow: ellipsis;
 }
 
+/* 種別ごとの色分け。既定（予定）は薄い青、タスクは緑、マイルストーンは黄 */
+.calendar-event.task {
+  background-color: var(--bs-success-bg-subtle);
+}
+
 .calendar-event.milestone {
   background-color: var(--bs-warning-bg-subtle);
   font-weight: 600;
@@ -237,6 +242,9 @@
   font-size: 0.85rem;
   min-width: 0;
   overflow-wrap: anywhere;
+}
+.schedule-slot.task {
+  border-left-color: var(--bs-success, #198754);
 }
 .schedule-slot.milestone {
   border-left-color: var(--bs-danger, #dc3545);

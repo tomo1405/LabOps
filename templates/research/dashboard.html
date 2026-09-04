@@ -37,7 +37,7 @@
           <li class="list-group-item">
             <div class="d-flex justify-content-between">
               <span>{{ event.title }}</span>
-              <span class="badge text-bg-secondary">{{ event.get_event_type_display }}</span>
+              <span class="badge {% if event.event_type == 'milestone' %}text-bg-warning{% elif event.event_type == 'task' %}text-bg-success{% else %}text-bg-info{% endif %}">{{ event.get_event_type_display }}</span>
             </div>
             <div class="text-secondary small">
               {{ event.start_at|date:"n/j (D) H:i" }}
