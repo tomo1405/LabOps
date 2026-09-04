@@ -4,6 +4,7 @@ from .models import (
     ConferenceChecklistItem,
     ConferencePrep,
     DiaryAttachment,
+    DiaryComment,
     DiaryEntry,
     ScheduleEvent,
 )
@@ -15,11 +16,17 @@ class DiaryAttachmentInline(admin.TabularInline):
     readonly_fields = ("original_name", "uploaded_at")
 
 
+class DiaryCommentInline(admin.TabularInline):
+    model = DiaryComment
+    extra = 0
+    readonly_fields = ("created_at",)
+
+
 @admin.register(DiaryEntry)
 class DiaryEntryAdmin(admin.ModelAdmin):
     list_display = ("date", "user", "visibility", "tags", "updated_at")
     list_filter = ("user", "visibility", "date")
-    inlines = [DiaryAttachmentInline]
+    inlines = [DiaryAttachmentInline, DiaryCommentInline]
     search_fields = ("content", "tags")
     date_hierarchy = "date"
 

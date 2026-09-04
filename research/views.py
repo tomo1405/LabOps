@@ -24,6 +24,7 @@ from .forms import (
     ConferenceChecklistItemForm,
     ConferencePrepForm,
     DiaryAttachmentForm,
+    DiaryCommentForm,
     DiaryEntryForm,
     ScheduleEventForm,
 )
@@ -31,6 +32,7 @@ from .models import (
     ConferenceChecklistItem,
     ConferencePrep,
     DiaryAttachment,
+    DiaryComment,
     DiaryEntry,
     DiaryVisibility,
     ScheduleEvent,
@@ -139,11 +141,17 @@ def diary_detail(request: HttpRequest, pk: int) -> HttpResponse:
 
     本人の記録に加えて、研究室内に公開された他メンバーの記録も閲覧できる。
     """
-    entry = get_object_or_404(_visible_diaries(request.user).prefetch_related("attachments"), pk=pk)
+    entry = get_object_or_404(
+        _visible_diaries(request.user).prefetch_related("attachments", "comments__author"), pk=pk
+    )
     return render(
         request,
         "research/diary_detail.html",
-        {"entry": entry, "attachment_form": DiaryAttachmentForm()},
+        {
+            "entry": entry,
+            "attachment_form": DiaryAttachmentForm(),
+            "comment_form": DiaryCommentForm(),
+        },
     )
 
 
@@ -209,6 +217,51 @@ def diary_attachment_delete(request: HttpRequest, pk: int, attachment_id: int) -
     attachment.file.delete(save=False)
     attachment.delete()
     messages.success(request, f"「{name}」を削除しました。")
+    return redirect("research:diary_detail", pk=pk)
+
+
+@login_required
+@require_POST
+def diary_comment_create(request: HttpRequest, pk: int) -> HttpResponse:
+    """POST /diary/<id>/comments : コメントの投稿。
+
+    閲覧できる日記（自分のもの、または研究室内に公開された日記）にだけ投稿できる。
+    """
+    entry = get_object_or_404(_visible_diaries(request.user), pk=pk)
+    form = DiaryCommentForm(request.POST)
+    if form.is_valid():
+        comment = form.save(commit=False)
+        comment.diary = entry
+        comment.author = request.user
+        comment.save()
+        messages.success(request, "コメントを投稿しました。")
+        return redirect("research:diary_detail", pk=entry.pk)
+
+    entry = (
+        _visible_diaries(request.user).prefetch_related("attachments", "comments__author").get(pk=entry.pk)
+    )
+    return render(
+        request,
+        "research/diary_detail.html",
+        {"entry": entry, "attachment_form": DiaryAttachmentForm(), "comment_form": form},
+        status=400,
+    )
+
+
+@login_required
+@require_POST
+def diary_comment_delete(request: HttpRequest, pk: int, comment_id: int) -> HttpResponse:
+    """POST /diary/<id>/comments/<comment_id>/delete : コメントの削除。
+
+    コメントの投稿者に加えて、日記の作成者も削除できる。
+    """
+    comment = get_object_or_404(
+        DiaryComment.objects.filter(Q(author=request.user) | Q(diary__user=request.user)),
+        pk=comment_id,
+        diary_id=pk,
+    )
+    comment.delete()
+    messages.success(request, "コメントを削除しました。")
     return redirect("research:diary_detail", pk=pk)
 
 

@@ -7,6 +7,7 @@ from .models import (
     ConferenceChecklistItem,
     ConferencePrep,
     DiaryAttachment,
+    DiaryComment,
     DiaryEntry,
     ScheduleEvent,
 )
@@ -51,6 +52,20 @@ class DiaryAttachmentForm(forms.ModelForm):
         if uploaded.size > limit:
             raise forms.ValidationError(f"ファイルサイズが上限（{self.MAX_SIZE_MB}MB）を超えています。")
         return uploaded
+
+
+class DiaryCommentForm(forms.ModelForm):
+    """研究日記へのコメントフォーム。"""
+
+    class Meta:
+        model = DiaryComment
+        fields = ["body"]
+        widgets = {
+            "body": forms.Textarea(
+                attrs={"class": "form-control", "rows": 3, "placeholder": "コメントを書く"}
+            ),
+        }
+        labels = {"body": "コメント"}
 
 
 class ScheduleEventForm(forms.ModelForm):

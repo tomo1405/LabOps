@@ -109,6 +109,37 @@ class DiaryAttachment(models.Model):
         return self.original_name.lower().endswith(self.IMAGE_SUFFIXES)
 
 
+class DiaryComment(models.Model):
+    """研究日記へのコメント。
+
+    詳細設計書2.3にない追加テーブル。公開された日記に対して
+    研究室メンバーが助言や質問を書けるようにする。
+    """
+
+    diary = models.ForeignKey(
+        DiaryEntry,
+        on_delete=models.CASCADE,
+        related_name="comments",
+        verbose_name="研究日記",
+    )
+    author = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.CASCADE,
+        related_name="diary_comments",
+        verbose_name="投稿者",
+    )
+    body = models.TextField("本文")
+    created_at = models.DateTimeField("投稿日時", auto_now_add=True)
+
+    class Meta:
+        verbose_name = "研究日記のコメント"
+        verbose_name_plural = "研究日記のコメント"
+        ordering = ["created_at", "id"]
+
+    def __str__(self) -> str:
+        return f"{self.author.name}: {self.body[:20]}"
+
+
 class ConferencePrep(models.Model):
     """学会準備（詳細設計書 2.5 ConferencePrep）。"""
 

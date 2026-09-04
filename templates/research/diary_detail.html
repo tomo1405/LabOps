@@ -82,4 +82,45 @@
     </div>
   {% endif %}
 </div>
+
+<div class="card mt-3">
+  <div class="card-header">コメント（{{ entry.comments.count }} 件）</div>
+  <ul class="list-group list-group-flush">
+    {% for comment in entry.comments.all %}
+      <li class="list-group-item">
+        <div class="d-flex justify-content-between align-items-start gap-2">
+          <div>
+            <span class="fw-semibold">{{ comment.author.name }}</span>
+            <span class="text-secondary small">{{ comment.created_at|date:"Y-m-d H:i" }}</span>
+          </div>
+          {% if comment.author_id == user.pk or entry.user_id == user.pk %}
+            <form method="post"
+                  action="{% url 'research:diary_comment_delete' entry.pk comment.pk %}">
+              {% csrf_token %}
+              <button type="submit" class="btn btn-sm btn-link text-danger py-0">削除</button>
+            </form>
+          {% endif %}
+        </div>
+        <div class="mt-1" style="white-space: pre-wrap;">{{ comment.body }}</div>
+      </li>
+    {% empty %}
+      <li class="list-group-item text-secondary">コメントはまだありません。</li>
+    {% endfor %}
+  </ul>
+  <div class="card-footer">
+    <form method="post" action="{% url 'research:diary_comment_create' entry.pk %}">
+      {% csrf_token %}
+      {{ comment_form.body }}
+      {% for error in comment_form.body.errors %}
+        <div class="text-danger small">{{ error }}</div>
+      {% endfor %}
+      <button type="submit" class="btn btn-outline-primary mt-2">コメントする</button>
+    </form>
+    {% if not entry.is_public and entry.user_id == user.pk %}
+      <p class="text-secondary small mt-2 mb-0">
+        この日記は非公開のため、コメントを書けるのは自分だけです。
+      </p>
+    {% endif %}
+  </div>
+</div>
 {% endblock %}

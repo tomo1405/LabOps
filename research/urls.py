@@ -20,6 +20,12 @@ urlpatterns = [
         views.diary_attachment_delete,
         name="diary_attachment_delete",
     ),
+    path("diary/<int:pk>/comments", views.diary_comment_create, name="diary_comment_create"),
+    path(
+        "diary/<int:pk>/comments/<int:comment_id>/delete",
+        views.diary_comment_delete,
+        name="diary_comment_delete",
+    ),
     # 研究スケジュール
     path("schedule/", views.schedule_calendar, name="schedule"),
     path("schedule/events", views.schedule_event_create, name="schedule_event_create"),
