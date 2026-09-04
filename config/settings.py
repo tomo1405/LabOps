@@ -1,4 +1,4 @@
-"""Django settings for 研究室統合プラットフォーム (SELAPO)."""
+"""Django settings for LabOps（研究室統合プラットフォーム）。"""
 
 import os
 import sys
@@ -84,9 +84,9 @@ else:
     DATABASES = {
         "default": {
             "ENGINE": "django.db.backends.postgresql",
-            "NAME": os.environ.get("POSTGRES_DB", "selapo"),
-            "USER": os.environ.get("POSTGRES_USER", "selapo"),
-            "PASSWORD": os.environ.get("POSTGRES_PASSWORD", "selapo"),
+            "NAME": os.environ.get("POSTGRES_DB", "labops"),
+            "USER": os.environ.get("POSTGRES_USER", "labops"),
+            "PASSWORD": os.environ.get("POSTGRES_PASSWORD", "labops"),
             "HOST": os.environ.get("POSTGRES_HOST", "db"),
             "PORT": os.environ.get("POSTGRES_PORT", "5432"),
         }

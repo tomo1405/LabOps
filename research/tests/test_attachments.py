@@ -13,7 +13,7 @@ from research.models import DiaryAttachment, DiaryEntry, DiaryVisibility
 
 User = get_user_model()
 
-MEDIA_ROOT = tempfile.mkdtemp(prefix="selapo-test-media-")
+MEDIA_ROOT = tempfile.mkdtemp(prefix="labops-test-media-")
 
 
 @override_settings(MEDIA_ROOT=MEDIA_ROOT)

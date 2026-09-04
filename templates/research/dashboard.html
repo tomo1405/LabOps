@@ -1,5 +1,5 @@
 {% extends "base.html" %}
-{% block title %}ダッシュボード | 研究室統合プラットフォーム{% endblock %}
+{% block title %}ダッシュボード | LabOps{% endblock %}
 {% block heading %}ダッシュボード{% endblock %}
 
 {% block content %}
@@ -14,7 +14,7 @@
         {% for entry in recent_diaries %}
           <li class="list-group-item">
             <a href="{% url 'research:diary_detail' entry.pk %}">{{ entry.date }}</a>
-            <div class="text-secondary small text-truncate">{{ entry.content }}</div>
+            <div class="text-secondary small text-truncate">{{ entry.content_excerpt }}</div>
           </li>
         {% empty %}
           <li class="list-group-item text-secondary">まだ記録がありません。</li>

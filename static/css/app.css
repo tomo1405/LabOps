@@ -141,3 +141,16 @@
   border: 1px solid var(--bs-border-color, #dee2e6);
   border-radius: 0.25rem;
 }
+
+/* ナビゲーションのロゴ */
+.brand-logo {
+  height: 28px;
+  width: auto;
+}
+
+/* ログイン画面のロゴ（明るい背景に載るため、白抜きロゴを暗く反転させる） */
+.login-logo {
+  height: 56px;
+  width: auto;
+  filter: invert(1) hue-rotate(180deg);
+}

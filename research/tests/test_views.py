@@ -669,6 +669,16 @@ class ConferenceUpdateDeleteTests(AuthenticatedTestCase):
 
 
 class DashboardViewTests(AuthenticatedTestCase):
+    def test_diary_preview_strips_markdown_syntax(self):
+        DiaryEntry.objects.create(
+            user=self.user,
+            date=timezone.localdate(),
+            content="## 今日の実験\n\n- 前処理を修正",
+        )
+        response = self.client.get(reverse("research:dashboard"))
+        self.assertContains(response, "今日の実験")
+        self.assertNotContains(response, "## 今日の実験")
+
     def test_dashboard_lists_own_data_only(self):
         DiaryEntry.objects.create(user=self.user, date=timezone.localdate(), content="自分の記録")
         DiaryEntry.objects.create(user=self.other, date=timezone.localdate(), content="他人の記録")
