@@ -18,4 +18,7 @@ urlpatterns = [
     path("news/new", views.news_create, name="news_create"),
     # 詳細設計書3.7の「公開操作」に対応するため、設計書の一覧に追加した経路
     path("news/<int:pk>/publish", views.news_publish, name="news_publish"),
+    path("news/<int:pk>/unpublish", views.news_unpublish, name="news_unpublish"),
+    path("news/<int:pk>/edit", views.news_update, name="news_update"),
+    path("news/<int:pk>/delete", views.news_delete, name="news_delete"),
 ]

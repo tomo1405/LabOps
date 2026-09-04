@@ -28,6 +28,8 @@ class LoginRequiredTests(TestCase):
             reverse("community:canteen_today"),
             reverse("community:news_list"),
             reverse("community:news_create"),
+            reverse("community:news_update", args=[1]),
+            reverse("community:news_delete", args=[1]),
         ]
         for url in urls:
             with self.subTest(url=url):
@@ -177,6 +179,110 @@ class NewsViewTests(AuthenticatedTestCase):
         post = NewsPost.objects.create(title="下書き", body="本文", author=self.user)
         response = self.client.get(reverse("community:news_publish", args=[post.pk]))
         self.assertEqual(response.status_code, 405)
+
+
+class NewsUpdateDeleteTests(AuthenticatedTestCase):
+    """News記事の更新・削除・公開の取り下げ。"""
+
+    def setUp(self):
+        super().setUp()
+        self.draft = NewsPost.objects.create(title="下書き記事", body="本文", author=self.user)
+
+    def test_edit_form_shows_current_values(self):
+        response = self.client.get(reverse("community:news_update", args=[self.draft.pk]))
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(response, "下書き記事")
+
+    def test_update_changes_title_and_body(self):
+        response = self.client.post(
+            reverse("community:news_update", args=[self.draft.pk]),
+            {"title": "変更後のタイトル", "body": "変更後の本文"},
+        )
+        self.assertRedirects(response, reverse("community:news_list"))
+        self.draft.refresh_from_db()
+        self.assertEqual(self.draft.title, "変更後のタイトル")
+        self.assertEqual(self.draft.body, "変更後の本文")
+        self.assertEqual(NewsPost.objects.count(), 1)
+
+    def test_update_keeps_published_state_and_timestamp(self):
+        """公開済みの記事を編集しても、公開状態と公開日時は変わらない。"""
+        post = NewsPost.objects.create(
+            title="公開記事",
+            body="本文",
+            author=self.user,
+            status=NewsStatus.PUBLISHED,
+            published_at=timezone.now(),
+        )
+        published_at = post.published_at
+        self.client.post(
+            reverse("community:news_update", args=[post.pk]),
+            {"title": "公開記事（訂正）", "body": "訂正後の本文"},
+        )
+        post.refresh_from_db()
+        self.assertEqual(post.status, NewsStatus.PUBLISHED)
+        self.assertEqual(post.published_at, published_at)
+
+    def test_cannot_edit_other_members_post(self):
+        post = NewsPost.objects.create(title="他人の記事", body="本文", author=self.other)
+        response = self.client.post(
+            reverse("community:news_update", args=[post.pk]),
+            {"title": "書き換え", "body": "本文"},
+        )
+        self.assertEqual(response.status_code, 404)
+        post.refresh_from_db()
+        self.assertEqual(post.title, "他人の記事")
+
+    def test_delete_confirmation_page_does_not_delete(self):
+        response = self.client.get(reverse("community:news_delete", args=[self.draft.pk]))
+        self.assertEqual(response.status_code, 200)
+        self.assertTrue(NewsPost.objects.filter(pk=self.draft.pk).exists())
+
+    def test_delete_removes_post(self):
+        response = self.client.post(reverse("community:news_delete", args=[self.draft.pk]))
+        self.assertRedirects(response, reverse("community:news_list"))
+        self.assertFalse(NewsPost.objects.filter(pk=self.draft.pk).exists())
+
+    def test_cannot_delete_other_members_post(self):
+        post = NewsPost.objects.create(title="他人の記事", body="本文", author=self.other)
+        response = self.client.post(reverse("community:news_delete", args=[post.pk]))
+        self.assertEqual(response.status_code, 404)
+        self.assertTrue(NewsPost.objects.filter(pk=post.pk).exists())
+
+    def test_unpublish_returns_post_to_draft(self):
+        post = NewsPost.objects.create(
+            title="公開記事",
+            body="本文",
+            author=self.user,
+            status=NewsStatus.PUBLISHED,
+            published_at=timezone.now(),
+        )
+        response = self.client.post(reverse("community:news_unpublish", args=[post.pk]))
+        self.assertRedirects(response, reverse("community:news_list"))
+        post.refresh_from_db()
+        self.assertEqual(post.status, NewsStatus.DRAFT)
+        self.assertIsNone(post.published_at)
+
+    def test_republish_after_unpublish_sets_new_timestamp(self):
+        post = NewsPost.objects.create(title="記事", body="本文", author=self.user)
+        self.client.post(reverse("community:news_publish", args=[post.pk]))
+        self.client.post(reverse("community:news_unpublish", args=[post.pk]))
+        self.client.post(reverse("community:news_publish", args=[post.pk]))
+        post.refresh_from_db()
+        self.assertEqual(post.status, NewsStatus.PUBLISHED)
+        self.assertIsNotNone(post.published_at)
+
+    def test_cannot_unpublish_other_members_post(self):
+        post = NewsPost.objects.create(
+            title="他人の公開記事",
+            body="本文",
+            author=self.other,
+            status=NewsStatus.PUBLISHED,
+            published_at=timezone.now(),
+        )
+        response = self.client.post(reverse("community:news_unpublish", args=[post.pk]))
+        self.assertEqual(response.status_code, 404)
+        post.refresh_from_db()
+        self.assertEqual(post.status, NewsStatus.PUBLISHED)
 
 
 class DashboardIntegrationTests(AuthenticatedTestCase):

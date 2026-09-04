@@ -98,6 +98,15 @@ class NewsPost(models.Model):
     def is_published(self) -> bool:
         return self.status == NewsStatus.PUBLISHED
 
+    def unpublish(self) -> "NewsPost":
+        """公開済みの記事を下書きへ戻す。公開日時は消し、再公開時に付け直す。"""
+        if not self.is_published:
+            return self
+        self.status = NewsStatus.DRAFT
+        self.published_at = None
+        self.save(update_fields=["status", "published_at"])
+        return self
+
     def publish(self) -> "NewsPost":
         """下書きを公開する（詳細設計書 3.7 の手順2）。公開日時を記録する。
 

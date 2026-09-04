@@ -1,0 +1,33 @@
+{% extends "base.html" %}
+{% block title %}News記事の削除 | 研究室統合プラットフォーム{% endblock %}
+{% block heading %}News記事の削除{% endblock %}
+
+{% block content %}
+<div class="row">
+  <div class="col-lg-8">
+    <div class="card border-danger">
+      <div class="card-header text-bg-danger">このNews記事を削除しますか？</div>
+      <div class="card-body">
+        <div class="fw-semibold mb-1">
+          {{ post.title }}
+          {% if post.is_published %}<span class="badge text-bg-success">公開</span>
+          {% else %}<span class="badge text-bg-secondary">下書き</span>{% endif %}
+        </div>
+        <div class="text-secondary" style="white-space: pre-wrap;">{{ post.body|truncatechars:200 }}</div>
+      </div>
+      <div class="card-footer">
+        <form method="post">
+          {% csrf_token %}
+          <button type="submit" class="btn btn-danger">削除する</button>
+          <a class="btn btn-link" href="{% url 'community:news_update' post.pk %}">キャンセル</a>
+        </form>
+      </div>
+    </div>
+    {% if post.is_published %}
+      <p class="text-secondary small mt-3 mb-0">
+        公開中の記事です。研究室HPへの掲載を止めるだけなら、削除ではなく一覧の「下書きに戻す」を使います。
+      </p>
+    {% endif %}
+  </div>
+</div>
+{% endblock %}

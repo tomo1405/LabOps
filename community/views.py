@@ -140,6 +140,48 @@ def news_create(request: HttpRequest) -> HttpResponse:
 
 
 @login_required
+def news_update(request: HttpRequest, pk: int) -> HttpResponse:
+    """GET/POST /news/<id>/edit : News記事の編集（作成者のみ）。
+
+    公開済みの記事を編集しても公開日時は変わらない（公開の取り下げは別操作）。
+    """
+    post = get_object_or_404(NewsPost, pk=pk, author=request.user)
+    if request.method == "POST":
+        form = NewsPostForm(request.POST, instance=post)
+        if form.is_valid():
+            form.save()
+            messages.success(request, "News記事を更新しました。")
+            return redirect("community:news_list")
+    else:
+        form = NewsPostForm(instance=post)
+    return render(request, "community/news_form.html", {"form": form, "post": post})
+
+
+@login_required
+def news_delete(request: HttpRequest, pk: int) -> HttpResponse:
+    """GET/POST /news/<id>/delete : News記事の削除（GETは確認画面）。"""
+    post = get_object_or_404(NewsPost, pk=pk, author=request.user)
+    if request.method == "POST":
+        post.delete()
+        messages.success(request, "News記事を削除しました。")
+        return redirect("community:news_list")
+    return render(request, "community/news_confirm_delete.html", {"post": post})
+
+
+@login_required
+@require_POST
+def news_unpublish(request: HttpRequest, pk: int) -> HttpResponse:
+    """POST /news/<id>/unpublish : 公開の取り下げ（作成者のみ）。
+
+    研究室HPへの掲載対象から外したい場合に、下書きへ戻す。
+    """
+    post = get_object_or_404(NewsPost, pk=pk, author=request.user)
+    post.unpublish()
+    messages.success(request, f"「{post.title}」を下書きに戻しました。")
+    return redirect("community:news_list")
+
+
+@login_required
 @require_POST
 def news_publish(request: HttpRequest, pk: int) -> HttpResponse:
     """POST /news/<id>/publish : 下書きの公開（詳細設計書 3.7 の手順2）。

@@ -18,11 +18,21 @@
             <span class="badge text-bg-secondary">下書き</span>
           {% endif %}
         </div>
-        {% if not post.is_published and post.author_id == user.pk %}
-          <form method="post" action="{% url 'community:news_publish' post.pk %}">
-            {% csrf_token %}
-            <button type="submit" class="btn btn-sm btn-outline-primary">公開する</button>
-          </form>
+        {% if post.author_id == user.pk %}
+          <div class="d-flex gap-2">
+            {% if post.is_published %}
+              <form method="post" action="{% url 'community:news_unpublish' post.pk %}">
+                {% csrf_token %}
+                <button type="submit" class="btn btn-sm btn-outline-secondary">下書きに戻す</button>
+              </form>
+            {% else %}
+              <form method="post" action="{% url 'community:news_publish' post.pk %}">
+                {% csrf_token %}
+                <button type="submit" class="btn btn-sm btn-outline-primary">公開する</button>
+              </form>
+            {% endif %}
+            <a class="btn btn-sm btn-outline-secondary" href="{% url 'community:news_update' post.pk %}">編集</a>
+          </div>
         {% endif %}
       </div>
       <div class="text-secondary small">
