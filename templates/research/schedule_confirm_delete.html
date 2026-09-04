@@ -1,0 +1,32 @@
+{% extends "base.html" %}
+{% block title %}予定の削除 | 研究室統合プラットフォーム{% endblock %}
+{% block heading %}予定の削除{% endblock %}
+
+{% block content %}
+<div class="row">
+  <div class="col-lg-6">
+    <div class="card border-danger">
+      <div class="card-header text-bg-danger">この予定を削除しますか？</div>
+      <div class="card-body">
+        <div class="fw-semibold">{{ event.title }}</div>
+        <div class="text-secondary small">
+          {{ event.start_at|date:"Y年n月j日 (D) H:i" }}
+          {% if event.end_at %}〜 {{ event.end_at|date:"H:i" }}{% endif %}
+          <span class="badge text-bg-info">{{ event.get_event_type_display }}</span>
+          {% if event.is_shared %}<span class="badge text-bg-secondary">研究室共通</span>{% endif %}
+        </div>
+      </div>
+      <div class="card-footer">
+        <form method="post">
+          {% csrf_token %}
+          <button type="submit" class="btn btn-danger">削除する</button>
+          <a class="btn btn-link" href="{% url 'research:schedule_event_update' event.pk %}">キャンセル</a>
+        </form>
+      </div>
+    </div>
+    {% if event.is_shared %}
+      <p class="text-secondary small mt-3 mb-0">研究室共通の予定です。削除すると全メンバーの表示から消えます。</p>
+    {% endif %}
+  </div>
+</div>
+{% endblock %}

@@ -1,0 +1,26 @@
+{% extends "base.html" %}
+{% block title %}予定の編集 | 研究室統合プラットフォーム{% endblock %}
+{% block heading %}予定の編集{% endblock %}
+{% block heading_actions %}
+  <a class="btn btn-outline-danger" href="{% url 'research:schedule_event_delete' event.pk %}">削除</a>
+{% endblock %}
+
+{% block content %}
+<div class="row">
+  <div class="col-lg-6">
+    <div class="card">
+      <div class="card-body">
+        <form method="post" novalidate>
+          {% csrf_token %}
+          {% include "research/partials/schedule_form_fields.html" %}
+          <button type="submit" class="btn btn-primary">保存</button>
+          <a class="btn btn-link" href="{% url 'research:schedule' %}">キャンセル</a>
+        </form>
+      </div>
+    </div>
+    {% if event.is_shared %}
+      <p class="text-secondary small mt-3 mb-0">この予定は研究室共通です。変更は全メンバーの表示に反映されます。</p>
+    {% endif %}
+  </div>
+</div>
+{% endblock %}

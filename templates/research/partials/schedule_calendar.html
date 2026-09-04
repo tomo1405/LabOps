@@ -50,7 +50,11 @@
           {% if event.conference %}<span class="badge text-bg-light">{{ event.conference.conference_name }}</span>{% endif %}
           {% if event.is_shared %}<span class="badge text-bg-secondary">研究室共通</span>{% endif %}
         </span>
-        <span class="badge text-bg-info">{{ event.get_event_type_display }}</span>
+        <span class="d-flex align-items-center gap-2">
+          <span class="badge text-bg-info">{{ event.get_event_type_display }}</span>
+          <a class="btn btn-sm btn-outline-secondary"
+             href="{% url 'research:schedule_event_update' event.pk %}">編集</a>
+        </span>
       </li>
     {% empty %}
       <li class="list-group-item text-secondary">この月の予定はありません。</li>

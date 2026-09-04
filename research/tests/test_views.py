@@ -29,6 +29,8 @@ class LoginRequiredTests(TestCase):
             reverse("research:diary_update", args=[1]),
             reverse("research:diary_delete", args=[1]),
             reverse("research:schedule"),
+            reverse("research:schedule_event_update", args=[1]),
+            reverse("research:schedule_event_delete", args=[1]),
             reverse("research:conference_list"),
             reverse("research:conference_create"),
         ]
@@ -231,6 +233,97 @@ class ScheduleViewTests(AuthenticatedTestCase):
     def test_get_is_not_allowed_for_event_endpoint(self):
         response = self.client.get(reverse("research:schedule_event_create"))
         self.assertEqual(response.status_code, 405)
+
+
+class ScheduleUpdateDeleteTests(AuthenticatedTestCase):
+    """研究スケジュールの更新・削除。"""
+
+    def setUp(self):
+        super().setUp()
+        self.start = timezone.now() + timedelta(days=1)
+        self.event = ScheduleEvent.objects.create(
+            user=self.user, title="研究ミーティング", start_at=self.start, event_type=EventType.TASK
+        )
+
+    def _post_data(self, **overrides):
+        data = {
+            "title": "研究ミーティング（変更後）",
+            "start_at": timezone.localtime(self.start).strftime("%Y-%m-%dT%H:%M"),
+            "end_at": "",
+            "event_type": EventType.TASK,
+            "conference": "",
+        }
+        data.update(overrides)
+        return data
+
+    def test_edit_form_shows_current_values(self):
+        response = self.client.get(reverse("research:schedule_event_update", args=[self.event.pk]))
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(response, "研究ミーティング")
+
+    def test_update_changes_title(self):
+        response = self.client.post(
+            reverse("research:schedule_event_update", args=[self.event.pk]), self._post_data()
+        )
+        self.assertEqual(response.status_code, 302)
+        self.event.refresh_from_db()
+        self.assertEqual(self.event.title, "研究ミーティング（変更後）")
+        self.assertEqual(ScheduleEvent.objects.count(), 1)
+
+    def test_update_rejects_end_before_start(self):
+        response = self.client.post(
+            reverse("research:schedule_event_update", args=[self.event.pk]),
+            self._post_data(
+                end_at=timezone.localtime(self.start - timedelta(hours=2)).strftime("%Y-%m-%dT%H:%M")
+            ),
+        )
+        self.assertEqual(response.status_code, 200)
+        self.event.refresh_from_db()
+        self.assertEqual(self.event.title, "研究ミーティング")
+
+    def test_update_can_switch_to_shared_event(self):
+        self.client.post(
+            reverse("research:schedule_event_update", args=[self.event.pk]),
+            self._post_data(is_shared="1"),
+        )
+        self.event.refresh_from_db()
+        self.assertIsNone(self.event.user)
+        self.assertTrue(self.event.is_shared)
+
+    def test_delete_confirmation_page_does_not_delete(self):
+        response = self.client.get(reverse("research:schedule_event_delete", args=[self.event.pk]))
+        self.assertEqual(response.status_code, 200)
+        self.assertTrue(ScheduleEvent.objects.filter(pk=self.event.pk).exists())
+
+    def test_delete_removes_event(self):
+        response = self.client.post(reverse("research:schedule_event_delete", args=[self.event.pk]))
+        self.assertEqual(response.status_code, 302)
+        self.assertFalse(ScheduleEvent.objects.filter(pk=self.event.pk).exists())
+
+    def test_cannot_edit_other_members_personal_event(self):
+        event = ScheduleEvent.objects.create(
+            user=self.other, title="他人の予定", start_at=self.start, event_type=EventType.TASK
+        )
+        response = self.client.post(
+            reverse("research:schedule_event_update", args=[event.pk]), self._post_data()
+        )
+        self.assertEqual(response.status_code, 404)
+        event.refresh_from_db()
+        self.assertEqual(event.title, "他人の予定")
+
+    def test_shared_event_can_be_edited_by_any_member(self):
+        """研究室共通の予定は誰でも作成できる設計に合わせ、編集も全員に開いている。"""
+        event = ScheduleEvent.objects.create(
+            user=None, title="研究室全体ゼミ", start_at=self.start, event_type=EventType.TASK
+        )
+        response = self.client.post(
+            reverse("research:schedule_event_update", args=[event.pk]),
+            self._post_data(title="研究室全体ゼミ（変更後）", is_shared="1"),
+        )
+        self.assertEqual(response.status_code, 302)
+        event.refresh_from_db()
+        self.assertEqual(event.title, "研究室全体ゼミ（変更後）")
+        self.assertIsNone(event.user)
 
 
 class ConferenceViewTests(AuthenticatedTestCase):

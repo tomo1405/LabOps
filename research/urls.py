@@ -17,6 +17,8 @@ urlpatterns = [
     # 研究スケジュール
     path("schedule/", views.schedule_calendar, name="schedule"),
     path("schedule/events", views.schedule_event_create, name="schedule_event_create"),
+    path("schedule/events/<int:pk>/edit", views.schedule_event_update, name="schedule_event_update"),
+    path("schedule/events/<int:pk>/delete", views.schedule_event_delete, name="schedule_event_delete"),
     # 学会準備
     path("conference/", views.conference_list, name="conference_list"),
     path("conference/new", views.conference_create, name="conference_create"),

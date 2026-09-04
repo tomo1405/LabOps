@@ -14,6 +14,7 @@ from django.contrib.auth.decorators import login_required
 from django.db.models import Q
 from django.http import Http404, HttpRequest, HttpResponse
 from django.shortcuts import get_object_or_404, redirect, render
+from django.urls import reverse
 from django.utils import timezone
 from django.views.decorators.http import require_GET, require_POST
 
@@ -198,6 +199,12 @@ def _schedule_context(request: HttpRequest, year: int, month: int) -> dict:
     }
 
 
+def _schedule_url_for(event: ScheduleEvent) -> str:
+    """その予定が属する月のカレンダーURLを返す。"""
+    target = timezone.localtime(event.start_at).date()
+    return f"{reverse('research:schedule')}?year={target.year}&month={target.month}"
+
+
 @login_required
 @require_GET
 def schedule_calendar(request: HttpRequest) -> HttpResponse:
@@ -239,6 +246,48 @@ def schedule_event_create(request: HttpRequest) -> HttpResponse:
     context = _schedule_context(request, today.year, today.month)
     context["form"] = form
     return render(request, "research/partials/schedule_calendar.html", context, status=400)
+
+
+def _editable_event(request: HttpRequest, pk: int) -> ScheduleEvent:
+    """編集・削除できる予定を取得する。
+
+    本人の予定に加えて、研究室共通の予定（担当者なし）も対象とする。
+    共通予定は誰でも作成できる設計のため、編集・削除も全メンバーに開いている。
+    """
+    return get_object_or_404(_visible_events(request.user), pk=pk)
+
+
+@login_required
+def schedule_event_update(request: HttpRequest, pk: int) -> HttpResponse:
+    """GET/POST /schedule/events/<id>/edit : 予定の編集。"""
+    event = _editable_event(request, pk)
+    if request.method == "POST":
+        form = ScheduleEventForm(request.POST, instance=event, user=request.user)
+        if form.is_valid():
+            updated = form.save(commit=False)
+            updated.user = None if request.POST.get("is_shared") else request.user
+            updated.save()
+            messages.success(request, "予定を更新しました。")
+            return redirect(_schedule_url_for(updated))
+    else:
+        form = ScheduleEventForm(instance=event, user=request.user)
+    return render(
+        request,
+        "research/schedule_form.html",
+        {"form": form, "event": event, "is_shared": event.is_shared},
+    )
+
+
+@login_required
+def schedule_event_delete(request: HttpRequest, pk: int) -> HttpResponse:
+    """GET/POST /schedule/events/<id>/delete : 予定の削除（GETは確認画面）。"""
+    event = _editable_event(request, pk)
+    if request.method == "POST":
+        redirect_to = _schedule_url_for(event)
+        event.delete()
+        messages.success(request, "予定を削除しました。")
+        return redirect(redirect_to)
+    return render(request, "research/schedule_confirm_delete.html", {"event": event})
 
 
 # --- 学会準備 -------------------------------------------------------------
