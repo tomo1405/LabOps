@@ -3,6 +3,9 @@
 from django.conf import settings
 from django.db import models
 from django.utils import timezone
+from django.utils.safestring import mark_safe
+
+from .markdown_render import render_markdown
 
 
 class DiaryVisibility(models.TextChoices):
@@ -53,6 +56,11 @@ class DiaryEntry(models.Model):
     def is_public(self) -> bool:
         """研究室内に公開されているか。"""
         return self.visibility == DiaryVisibility.LAB
+
+    @property
+    def content_html(self) -> str:
+        """本文をMarkdownとして描画したHTML（サニタイズ済み）。"""
+        return mark_safe(render_markdown(self.content))  # noqa: S308 — render_markdown でサニタイズ済み
 
 
 class ConferencePrep(models.Model):

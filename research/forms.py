@@ -12,7 +12,7 @@ class DiaryEntryForm(forms.ModelForm):
         fields = ["date", "content", "tags", "visibility"]
         widgets = {
             "date": forms.DateInput(attrs={"type": "date", "class": "form-control"}),
-            "content": forms.Textarea(attrs={"class": "form-control", "rows": 10}),
+            "content": forms.Textarea(attrs={"class": "form-control", "rows": 12}),
             "tags": forms.TextInput(attrs={"class": "form-control", "placeholder": "実験, 論文読み"}),
             "visibility": forms.RadioSelect(),
         }
@@ -21,6 +21,9 @@ class DiaryEntryForm(forms.ModelForm):
         super().__init__(*args, **kwargs)
         if not self.instance.pk:
             self.fields["date"].initial = timezone.localdate()
+        self.fields[
+            "content"
+        ].help_text = "Markdownで書けます（## 見出し / - 箇条書き / **強調** / `コード` / 表）"
 
 
 class ScheduleEventForm(forms.ModelForm):

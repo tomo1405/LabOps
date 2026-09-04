@@ -40,8 +40,9 @@
   color: var(--bs-secondary-color);
 }
 
+/* Markdownで描画するため、素の改行保持（pre-wrap）は使わない */
 .diary-content {
-  white-space: pre-wrap;
+  overflow-wrap: anywhere;
 }
 
 /* 在室状況のインジケータ（優先度2: 在室メンバー可視化） */
@@ -89,3 +90,46 @@
 .diary-row:hover .diary-row-chevron {
   color: var(--bs-primary, #0d6efd);
 }
+
+/* Markdownで描画した本文 */
+.markdown-body h1,
+.markdown-body h2,
+.markdown-body h3 {
+  margin-top: 1.2rem;
+  margin-bottom: 0.6rem;
+  font-weight: 700;
+}
+.markdown-body h1 { font-size: 1.5rem; }
+.markdown-body h2 { font-size: 1.25rem; }
+.markdown-body h3 { font-size: 1.1rem; }
+.markdown-body > *:first-child { margin-top: 0; }
+.markdown-body ul,
+.markdown-body ol { padding-left: 1.4rem; }
+.markdown-body pre {
+  background-color: var(--bs-secondary-bg, #e9ecef);
+  padding: 0.75rem 1rem;
+  border-radius: 0.25rem;
+  overflow-x: auto;
+}
+.markdown-body code {
+  background-color: var(--bs-secondary-bg, #e9ecef);
+  padding: 0.1rem 0.3rem;
+  border-radius: 0.2rem;
+}
+.markdown-body pre code { background: none; padding: 0; }
+.markdown-body blockquote {
+  border-left: 3px solid var(--bs-border-color, #dee2e6);
+  padding-left: 0.9rem;
+  color: var(--bs-secondary-color, #6c757d);
+}
+.markdown-body table {
+  width: auto;
+  margin-bottom: 1rem;
+  border-collapse: collapse;
+}
+.markdown-body th,
+.markdown-body td {
+  border: 1px solid var(--bs-border-color, #dee2e6);
+  padding: 0.35rem 0.6rem;
+}
+.markdown-body img { max-width: 100%; height: auto; }
