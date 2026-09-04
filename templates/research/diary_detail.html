@@ -47,13 +47,13 @@
     {% for attachment in entry.attachments.all %}
       <div class="attachment mb-3">
         {% if attachment.is_image %}
-          <a href="{{ attachment.file.url }}" target="_blank" rel="noopener">
-            <img src="{{ attachment.file.url }}" alt="{{ attachment.original_name }}"
+          <a href="{{ attachment.download_url }}" target="_blank" rel="noopener">
+            <img src="{{ attachment.download_url }}" alt="{{ attachment.original_name }}"
                  class="attachment-image">
           </a>
         {% endif %}
         <div class="d-flex justify-content-between align-items-center gap-2 mt-1">
-          <a href="{{ attachment.file.url }}" target="_blank" rel="noopener">
+          <a href="{{ attachment.download_url }}" target="_blank" rel="noopener">
             {{ attachment.original_name }}
           </a>
           {% if entry.user_id == user.pk %}
@@ -86,7 +86,9 @@
         </div>
       </form>
       <p class="text-secondary small mt-2 mb-0">
-        画像（PNG / JPEG / GIF / WebP）は本文の下にそのまま表示されます。上限は1ファイル10MBです。
+        添付できるのは画像（PNG / JPEG / GIF / WebP）・PDF・Office文書（xlsx / docx / pptx）・
+        データファイル（CSV / TSV / TXT / MD / JSON / ZIP）です。上限は1ファイル10MBです。
+        画像は本文の下にそのまま表示されます。
       </p>
     </div>
   {% endif %}

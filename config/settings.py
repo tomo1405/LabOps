@@ -126,6 +126,11 @@ if TESTING:
 MEDIA_URL = "/media/"
 MEDIA_ROOT = BASE_DIR / "media"
 
+# 添付ファイルは認可付きビュー経由でのみ配信する（/media/ を直接公開しない）。
+# 本番では nginx の internal な /media/ に X-Accel-Redirect で実体配信を任せ、
+# 開発・テストでは Django が FileResponse で返す。
+USE_X_ACCEL_REDIRECT = False if TESTING else env_bool("DJANGO_USE_X_ACCEL_REDIRECT", not DEBUG)
+
 DEFAULT_AUTO_FIELD = "django.db.models.AutoField"
 
 MESSAGE_STORAGE = "django.contrib.messages.storage.session.SessionStorage"

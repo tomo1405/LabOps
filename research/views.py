@@ -8,11 +8,13 @@
 
 import calendar
 from datetime import date, datetime, time, timedelta
+from urllib.parse import quote
 
+from django.conf import settings
 from django.contrib import messages
 from django.contrib.auth.decorators import login_required
 from django.db.models import Q
-from django.http import Http404, HttpRequest, HttpResponse
+from django.http import FileResponse, Http404, HttpRequest, HttpResponse
 from django.shortcuts import get_object_or_404, redirect, render
 from django.urls import reverse
 from django.utils import timezone
@@ -20,6 +22,7 @@ from django.views.decorators.http import require_GET, require_POST
 
 from community.models import AttendanceState, AttendanceStatus, CanteenMenu, NewsPost, NewsStatus
 
+from . import attachments as attachment_types
 from .forms import (
     ConferenceChecklistItemForm,
     ConferencePrepForm,
@@ -198,11 +201,15 @@ def diary_attachment_create(request: HttpRequest, pk: int) -> HttpResponse:
         messages.success(request, f"「{attachment.original_name}」を添付しました。")
         return redirect("research:diary_detail", pk=entry.pk)
 
-    entry = _visible_diaries(request.user).prefetch_related("attachments").get(pk=entry.pk)
+    # 通常の詳細表示と同じコンテキストで再描画する。
+    # comment_form を省くと、添付エラー後だけコメント欄が消えてしまう。
+    entry = (
+        _visible_diaries(request.user).prefetch_related("attachments", "comments__author").get(pk=entry.pk)
+    )
     return render(
         request,
         "research/diary_detail.html",
-        {"entry": entry, "attachment_form": form},
+        {"entry": entry, "attachment_form": form, "comment_form": DiaryCommentForm()},
         status=400,
     )
 
@@ -213,11 +220,48 @@ def diary_attachment_delete(request: HttpRequest, pk: int, attachment_id: int) -
     """POST /diary/<id>/attachments/<attachment_id>/delete : 添付の削除。"""
     attachment = get_object_or_404(DiaryAttachment, pk=attachment_id, diary_id=pk, diary__user=request.user)
     name = attachment.original_name
-    # 実ファイルも消す（save=False でDB更新は delete() に任せる）
-    attachment.file.delete(save=False)
+    # 実体の削除は post_delete シグナル（research/signals.py）が行う
     attachment.delete()
     messages.success(request, f"「{name}」を削除しました。")
     return redirect("research:diary_detail", pk=pk)
+
+
+@login_required
+@require_GET
+def diary_attachment_download(request: HttpRequest, pk: int, attachment_id: int) -> HttpResponse:
+    """GET /diary/<id>/attachments/<attachment_id>/file : 添付ファイルの配信。
+
+    実体は nginx から直接配信させず、必ずここで認可を判定する。
+    - ログイン済みであること（login_required）
+    - 日記が本人のもの、または研究室内に公開されていること
+    - 添付がURLの日記に属していること
+    を満たさない場合は404を返す。
+    """
+    attachment = get_object_or_404(
+        DiaryAttachment.objects.filter(diary__in=_visible_diaries(request.user)),
+        pk=attachment_id,
+        diary_id=pk,
+    )
+    content_type = attachment.content_type
+    # 画像だけ画面に埋め込む。それ以外は同一オリジンでの実行を防ぐため必ずダウンロードさせる
+    disposition = "inline" if attachment.is_image else "attachment"
+    filename = attachment_types.safe_original_name(attachment.original_name)
+
+    if getattr(settings, "USE_X_ACCEL_REDIRECT", False):
+        # 認可判定後の実体配信は nginx（internal な /media/）に任せる
+        response = HttpResponse(content_type=content_type)
+        response["X-Accel-Redirect"] = settings.MEDIA_URL + quote(attachment.file.name)
+        response["Content-Disposition"] = f"{disposition}; filename*=UTF-8''{quote(filename)}"
+    else:
+        response = FileResponse(
+            attachment.file.open("rb"),
+            content_type=content_type,
+            as_attachment=not attachment.is_image,
+            filename=filename,
+        )
+    # 拡張子から決めた Content-Type を、ブラウザに推測で上書きさせない
+    response["X-Content-Type-Options"] = "nosniff"
+    return response
 
 
 @login_required

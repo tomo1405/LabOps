@@ -4,6 +4,7 @@ from django import forms
 from django.contrib.auth import get_user_model
 from django.utils import timezone
 
+from . import attachments
 from .models import (
     ConferenceChecklistItem,
     ConferencePrep,
@@ -37,7 +38,9 @@ class DiaryEntryForm(forms.ModelForm):
 class DiaryAttachmentForm(forms.ModelForm):
     """研究日記への添付フォーム。
 
-    研究室内利用のため拡張子の制限は設けず、サイズ上限のみを課す。
+    サイズ上限に加えて、研究室内で使う形式だけを許可する。
+    HTMLやSVGなどの能動的コンテンツを同一オリジンから配信させないため、
+    拡張子のホワイトリストと中身のシグネチャの両方を検証する。
     """
 
     MAX_SIZE_MB = 10
@@ -45,13 +48,32 @@ class DiaryAttachmentForm(forms.ModelForm):
     class Meta:
         model = DiaryAttachment
         fields = ["file"]
-        widgets = {"file": forms.ClearableFileInput(attrs={"class": "form-control"})}
+        widgets = {
+            "file": forms.ClearableFileInput(
+                attrs={
+                    "class": "form-control",
+                    "accept": ",".join(attachments.ALLOWED_SUFFIXES),
+                }
+            )
+        }
 
     def clean_file(self):
         uploaded = self.cleaned_data["file"]
         limit = self.MAX_SIZE_MB * 1024 * 1024
         if uploaded.size > limit:
             raise forms.ValidationError(f"ファイルサイズが上限（{self.MAX_SIZE_MB}MB）を超えています。")
+
+        # クライアントが申告する Content-Type は信用せず、拡張子で判定する
+        if not attachments.is_allowed_suffix(uploaded.name):
+            allowed = " / ".join(s.lstrip(".").upper() for s in attachments.ALLOWED_SUFFIXES)
+            raise forms.ValidationError(
+                f"この形式のファイルは添付できません。添付できるのは {allowed} です。"
+            )
+        if not attachments.matches_signature(attachments.read_head(uploaded), uploaded.name):
+            raise forms.ValidationError("ファイルの中身が拡張子と一致しません。")
+
+        # ディレクトリ成分や制御文字を落としてから保存名に使う
+        uploaded.name = attachments.safe_original_name(uploaded.name)
         return uploaded
 
 
