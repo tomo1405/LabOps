@@ -1,0 +1,45 @@
+/* 研究室統合プラットフォーム 独自スタイル（Bootstrap を補う最小限） */
+
+.calendar-table {
+  table-layout: fixed;
+}
+
+.calendar-table td {
+  height: 6.5rem;
+  vertical-align: top;
+  font-size: 0.85rem;
+}
+
+.calendar-table td.out-of-month {
+  background-color: var(--bs-tertiary-bg);
+  color: var(--bs-secondary-color);
+}
+
+.calendar-table td.today {
+  outline: 2px solid var(--bs-primary);
+}
+
+.calendar-event {
+  display: block;
+  margin-bottom: 0.15rem;
+  padding: 0.1rem 0.3rem;
+  border-radius: 0.2rem;
+  background-color: var(--bs-primary-bg-subtle);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.calendar-event.milestone {
+  background-color: var(--bs-warning-bg-subtle);
+  font-weight: 600;
+}
+
+.checklist-item.done label {
+  text-decoration: line-through;
+  color: var(--bs-secondary-color);
+}
+
+.diary-content {
+  white-space: pre-wrap;
+}

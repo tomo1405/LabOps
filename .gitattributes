@@ -1,0 +1,3 @@
+* text=auto eol=lf
+# PowerShell スクリプトは CRLF を維持する（Windows PowerShell 5.1 対策）
+*.ps1 text eol=crlf

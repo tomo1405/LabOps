@@ -1,0 +1,12 @@
+__pycache__/
+*.py[cod]
+.venv/
+.env
+.env.docker
+db.sqlite3
+/staticfiles/
+/media/
+.ruff_cache/
+
+# 別セッションが生成した画面モックアップ（日本語フォント未適用のため非公開）
+Claude outputs/

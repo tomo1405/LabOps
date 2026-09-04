@@ -1,0 +1,9 @@
+.venv/
+.git/
+.env
+.env.docker
+__pycache__/
+*.py[cod]
+db.sqlite3
+staticfiles/
+*.md
