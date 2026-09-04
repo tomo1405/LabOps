@@ -1,0 +1,87 @@
+{% extends "base.html" %}
+{% block title %}ダッシュボード | 研究室統合プラットフォーム{% endblock %}
+{% block heading %}ダッシュボード{% endblock %}
+
+{% block content %}
+<div class="row g-3">
+  <div class="col-lg-4">
+    <div class="card h-100">
+      <div class="card-header d-flex justify-content-between align-items-center">
+        <span>最近の研究日記</span>
+        <a class="small" href="{% url 'research:diary_list' %}">一覧</a>
+      </div>
+      <ul class="list-group list-group-flush">
+        {% for entry in recent_diaries %}
+          <li class="list-group-item">
+            <a href="{% url 'research:diary_detail' entry.pk %}">{{ entry.date }}</a>
+            <div class="text-secondary small text-truncate">{{ entry.content }}</div>
+          </li>
+        {% empty %}
+          <li class="list-group-item text-secondary">まだ記録がありません。</li>
+        {% endfor %}
+      </ul>
+      <div class="card-footer">
+        <a class="btn btn-sm btn-primary" href="{% url 'research:diary_create' %}">今日の日記を書く</a>
+      </div>
+    </div>
+  </div>
+
+  <div class="col-lg-4">
+    <div class="card h-100">
+      <div class="card-header d-flex justify-content-between align-items-center">
+        <span>今後の予定</span>
+        <a class="small" href="{% url 'research:schedule' %}">カレンダー</a>
+      </div>
+      <ul class="list-group list-group-flush">
+        {% for event in upcoming_events %}
+          <li class="list-group-item">
+            <div class="d-flex justify-content-between">
+              <span>{{ event.title }}</span>
+              <span class="badge text-bg-secondary">{{ event.get_event_type_display }}</span>
+            </div>
+            <div class="text-secondary small">
+              {{ event.start_at|date:"n/j (D) H:i" }}
+              {% if event.is_shared %}<span class="badge text-bg-light">研究室共通</span>{% endif %}
+            </div>
+          </li>
+        {% empty %}
+          <li class="list-group-item text-secondary">予定はありません。</li>
+        {% endfor %}
+      </ul>
+    </div>
+  </div>
+
+  <div class="col-lg-4">
+    <div class="card h-100">
+      <div class="card-header d-flex justify-content-between align-items-center">
+        <span>学会準備の締切</span>
+        <a class="small" href="{% url 'research:conference_list' %}">一覧</a>
+      </div>
+      <ul class="list-group list-group-flush">
+        {% for prep in conference_preps %}
+          <li class="list-group-item {% if prep.is_deadline_near %}list-group-item-warning{% elif prep.is_overdue %}list-group-item-secondary{% endif %}">
+            <div class="fw-semibold">{{ prep.conference_name }}</div>
+            <div class="small">
+              締切 {{ prep.deadline }}
+              {% if prep.is_overdue %}
+                （締切超過）
+              {% else %}
+                （あと {{ prep.days_until_deadline }} 日）
+              {% endif %}
+            </div>
+            <div class="progress mt-1" role="progressbar" aria-label="準備進捗" aria-valuenow="{{ prep.progress_percent }}" aria-valuemin="0" aria-valuemax="100" style="height: 6px;">
+              <div class="progress-bar" style="width: {{ prep.progress_percent }}%"></div>
+            </div>
+          </li>
+        {% empty %}
+          <li class="list-group-item text-secondary">登録された学会準備はありません。</li>
+        {% endfor %}
+      </ul>
+    </div>
+  </div>
+</div>
+
+<p class="text-secondary small mt-4 mb-0">
+  在室メンバー・学食メニュー・研究室Newsは優先度2の実装工程で追加予定です。
+</p>
+{% endblock %}

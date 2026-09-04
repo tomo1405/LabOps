@@ -1,0 +1,34 @@
+{% extends "base.html" %}
+{% block title %}研究日記 | 研究室統合プラットフォーム{% endblock %}
+{% block heading %}研究日記{% endblock %}
+{% block heading_actions %}
+  <a class="btn btn-primary" href="{% url 'research:diary_create' %}">新規作成</a>
+{% endblock %}
+
+{% block content %}
+<form class="row g-2 mb-3" method="get">
+  <div class="col-auto">
+    <input type="search" name="tag" value="{{ tag }}" class="form-control" placeholder="タグで絞り込み">
+  </div>
+  <div class="col-auto">
+    <button type="submit" class="btn btn-outline-secondary">絞り込み</button>
+    {% if tag %}<a class="btn btn-link" href="{% url 'research:diary_list' %}">クリア</a>{% endif %}
+  </div>
+</form>
+
+<div class="list-group">
+  {% for entry in entries %}
+    <a class="list-group-item list-group-item-action" href="{% url 'research:diary_detail' entry.pk %}">
+      <div class="d-flex justify-content-between">
+        <strong>{{ entry.date }}</strong>
+        <span>
+          {% for t in entry.tag_list %}<span class="badge text-bg-info">{{ t }}</span>{% endfor %}
+        </span>
+      </div>
+      <div class="text-secondary text-truncate">{{ entry.content }}</div>
+    </a>
+  {% empty %}
+    <div class="list-group-item text-secondary">該当する研究日記はありません。</div>
+  {% endfor %}
+</div>
+{% endblock %}

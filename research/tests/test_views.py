@@ -1,0 +1,286 @@
+"""優先度1: 研究支援系ビューのテスト（詳細設計書 4章のエンドポイント）。"""
+
+from datetime import timedelta
+
+from django.contrib.auth import get_user_model
+from django.test import TestCase
+from django.urls import reverse
+from django.utils import timezone
+
+from research.models import (
+    ConferenceChecklistItem,
+    ConferencePrep,
+    DiaryEntry,
+    EventType,
+    ScheduleEvent,
+)
+
+User = get_user_model()
+
+
+class LoginRequiredTests(TestCase):
+    """未ログインでは全画面がログイン画面へリダイレクトされる。"""
+
+    def test_protected_views_redirect_to_login(self):
+        urls = [
+            reverse("research:dashboard"),
+            reverse("research:diary_list"),
+            reverse("research:diary_create"),
+            reverse("research:schedule"),
+            reverse("research:conference_list"),
+            reverse("research:conference_create"),
+        ]
+        for url in urls:
+            with self.subTest(url=url):
+                response = self.client.get(url)
+                self.assertRedirects(response, f"{reverse('accounts:login')}?next={url}")
+
+
+class AuthenticatedTestCase(TestCase):
+    @classmethod
+    def setUpTestData(cls):
+        cls.user = User.objects.create_user(email="me@example.com", password="pw12345!", name="本人")
+        cls.other = User.objects.create_user(email="other@example.com", password="pw12345!", name="他人")
+
+    def setUp(self):
+        self.client.force_login(self.user)
+
+
+class DiaryViewTests(AuthenticatedTestCase):
+    def test_create_diary_assigns_current_user(self):
+        response = self.client.post(
+            reverse("research:diary_create"),
+            {"date": "2026-09-04", "content": "実験の結果を整理した", "tags": "実験"},
+        )
+        entry = DiaryEntry.objects.get()
+        self.assertRedirects(response, reverse("research:diary_detail", args=[entry.pk]))
+        self.assertEqual(entry.user, self.user)
+
+    def test_create_diary_rejects_empty_content(self):
+        response = self.client.post(
+            reverse("research:diary_create"), {"date": "2026-09-04", "content": "", "tags": ""}
+        )
+        self.assertEqual(response.status_code, 200)
+        self.assertFalse(DiaryEntry.objects.exists())
+
+    def test_list_shows_only_own_entries(self):
+        DiaryEntry.objects.create(user=self.user, date=timezone.localdate(), content="自分の日記")
+        DiaryEntry.objects.create(user=self.other, date=timezone.localdate(), content="他人の日記")
+        response = self.client.get(reverse("research:diary_list"))
+        self.assertContains(response, "自分の日記")
+        self.assertNotContains(response, "他人の日記")
+
+    def test_list_filters_by_tag(self):
+        DiaryEntry.objects.create(
+            user=self.user, date=timezone.localdate(), content="実験の記録", tags="実験"
+        )
+        DiaryEntry.objects.create(
+            user=self.user, date=timezone.localdate(), content="輪読の記録", tags="輪読"
+        )
+        response = self.client.get(reverse("research:diary_list"), {"tag": "輪読"})
+        self.assertContains(response, "輪読の記録")
+        self.assertNotContains(response, "実験の記録")
+
+    def test_detail_of_other_user_entry_returns_404(self):
+        entry = DiaryEntry.objects.create(user=self.other, date=timezone.localdate(), content="秘密")
+        response = self.client.get(reverse("research:diary_detail", args=[entry.pk]))
+        self.assertEqual(response.status_code, 404)
+
+
+class ScheduleViewTests(AuthenticatedTestCase):
+    def test_calendar_shows_own_and_shared_events(self):
+        now = timezone.now()
+        ScheduleEvent.objects.create(
+            user=self.user, title="自分の実験", start_at=now, event_type=EventType.TASK
+        )
+        ScheduleEvent.objects.create(title="研究室ゼミ", start_at=now, event_type=EventType.TASK)
+        ScheduleEvent.objects.create(
+            user=self.other, title="他人の予定", start_at=now, event_type=EventType.TASK
+        )
+        response = self.client.get(reverse("research:schedule"))
+        self.assertContains(response, "自分の実験")
+        self.assertContains(response, "研究室ゼミ")
+        self.assertNotContains(response, "他人の予定")
+
+    def test_calendar_shows_only_requested_month(self):
+        target = timezone.localtime(timezone.now()).replace(year=2026, month=5, day=10)
+        ScheduleEvent.objects.create(
+            user=self.user, title="5月の予定", start_at=target, event_type=EventType.TASK
+        )
+        response = self.client.get(reverse("research:schedule"), {"year": 2026, "month": 5})
+        self.assertContains(response, "5月の予定")
+        response = self.client.get(reverse("research:schedule"), {"year": 2026, "month": 6})
+        self.assertNotContains(response, "5月の予定")
+
+    def test_invalid_month_returns_404(self):
+        for params in ({"year": 2026, "month": 13}, {"year": "abc", "month": 1}):
+            with self.subTest(params=params):
+                response = self.client.get(reverse("research:schedule"), params)
+                self.assertEqual(response.status_code, 404)
+
+    def test_create_event_via_htmx_returns_calendar_partial(self):
+        response = self.client.post(
+            reverse("research:schedule_event_create"),
+            {
+                "title": "中間発表",
+                "start_at": "2026-09-10T13:00",
+                "end_at": "2026-09-10T14:00",
+                "event_type": EventType.MILESTONE,
+            },
+        )
+        self.assertEqual(response.status_code, 200)
+        event = ScheduleEvent.objects.get()
+        self.assertEqual(event.user, self.user)
+        self.assertContains(response, "中間発表")
+
+    def test_create_shared_event_has_no_owner(self):
+        self.client.post(
+            reverse("research:schedule_event_create"),
+            {
+                "title": "全体ゼミ",
+                "start_at": "2026-09-10T13:00",
+                "event_type": EventType.TASK,
+                "is_shared": "1",
+            },
+        )
+        self.assertIsNone(ScheduleEvent.objects.get().user)
+
+    def test_end_before_start_is_rejected(self):
+        response = self.client.post(
+            reverse("research:schedule_event_create"),
+            {
+                "title": "不正な予定",
+                "start_at": "2026-09-10T15:00",
+                "end_at": "2026-09-10T14:00",
+                "event_type": EventType.TASK,
+            },
+        )
+        self.assertEqual(response.status_code, 400)
+        self.assertFalse(ScheduleEvent.objects.exists())
+
+    def test_get_is_not_allowed_for_event_endpoint(self):
+        response = self.client.get(reverse("research:schedule_event_create"))
+        self.assertEqual(response.status_code, 405)
+
+
+class ConferenceViewTests(AuthenticatedTestCase):
+    def _prep(self, user=None, days=7) -> ConferencePrep:
+        return ConferencePrep.objects.create(
+            conference_name="テスト学会",
+            deadline=timezone.localdate() + timedelta(days=days),
+            user=user or self.user,
+        )
+
+    def test_create_prep_with_checklist_lines(self):
+        response = self.client.post(
+            reverse("research:conference_create"),
+            {
+                "conference_name": "情報処理学会",
+                "deadline": "2026-10-01",
+                "checklist_items": "要旨執筆\n\nスライド作成\n",
+            },
+        )
+        self.assertRedirects(response, reverse("research:conference_list"))
+        prep = ConferencePrep.objects.get()
+        self.assertEqual(prep.user, self.user)
+        self.assertEqual(
+            list(prep.checklist_items.values_list("item", flat=True)), ["要旨執筆", "スライド作成"]
+        )
+
+    def test_list_shows_only_own_preps(self):
+        self._prep()
+        ConferencePrep.objects.create(
+            conference_name="他人の学会", deadline=timezone.localdate(), user=self.other
+        )
+        response = self.client.get(reverse("research:conference_list"))
+        self.assertContains(response, "テスト学会")
+        self.assertNotContains(response, "他人の学会")
+
+    def test_near_deadline_is_highlighted(self):
+        self._prep(days=3)
+        response = self.client.get(reverse("research:conference_list"))
+        self.assertContains(response, "bg-warning-subtle")
+
+    def test_toggle_checklist_item(self):
+        prep = self._prep()
+        item = ConferenceChecklistItem.objects.create(conference=prep, item="要旨執筆")
+
+        response = self.client.post(reverse("research:checklist_item_toggle", args=[prep.pk, item.pk]))
+        self.assertEqual(response.status_code, 200)
+        item.refresh_from_db()
+        self.assertTrue(item.done)
+
+        self.client.post(reverse("research:checklist_item_toggle", args=[prep.pk, item.pk]))
+        item.refresh_from_db()
+        self.assertFalse(item.done)
+
+    def test_toggle_other_user_item_returns_404(self):
+        prep = self._prep(user=self.other)
+        item = ConferenceChecklistItem.objects.create(conference=prep, item="他人の項目")
+        response = self.client.post(reverse("research:checklist_item_toggle", args=[prep.pk, item.pk]))
+        self.assertEqual(response.status_code, 404)
+        item.refresh_from_db()
+        self.assertFalse(item.done)
+
+    def test_toggle_with_mismatched_conference_returns_404(self):
+        """他の学会のIDを指定してもチェックを切り替えられない。"""
+        prep = self._prep()
+        another = self._prep(days=20)
+        item = ConferenceChecklistItem.objects.create(conference=prep, item="要旨執筆")
+        response = self.client.post(reverse("research:checklist_item_toggle", args=[another.pk, item.pk]))
+        self.assertEqual(response.status_code, 404)
+
+    def test_add_checklist_item(self):
+        prep = self._prep()
+        response = self.client.post(
+            reverse("research:checklist_item_create", args=[prep.pk]), {"item": "発表練習"}
+        )
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(prep.checklist_items.count(), 1)
+        self.assertContains(response, "発表練習")
+
+    def test_add_empty_checklist_item_is_rejected(self):
+        prep = self._prep()
+        response = self.client.post(reverse("research:checklist_item_create", args=[prep.pk]), {"item": ""})
+        self.assertEqual(response.status_code, 400)
+        self.assertEqual(prep.checklist_items.count(), 0)
+
+    def test_add_item_to_other_user_prep_returns_404(self):
+        prep = self._prep(user=self.other)
+        response = self.client.post(
+            reverse("research:checklist_item_create", args=[prep.pk]), {"item": "乗っ取り"}
+        )
+        self.assertEqual(response.status_code, 404)
+        self.assertEqual(prep.checklist_items.count(), 0)
+
+
+class DashboardViewTests(AuthenticatedTestCase):
+    def test_dashboard_lists_own_data_only(self):
+        DiaryEntry.objects.create(user=self.user, date=timezone.localdate(), content="自分の記録")
+        DiaryEntry.objects.create(user=self.other, date=timezone.localdate(), content="他人の記録")
+        ScheduleEvent.objects.create(
+            user=self.user,
+            title="来週の実験",
+            start_at=timezone.now() + timedelta(days=7),
+            event_type=EventType.TASK,
+        )
+        ConferencePrep.objects.create(
+            conference_name="近い学会", deadline=timezone.localdate() + timedelta(days=2), user=self.user
+        )
+
+        response = self.client.get(reverse("research:dashboard"))
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(response, "自分の記録")
+        self.assertNotContains(response, "他人の記録")
+        self.assertContains(response, "来週の実験")
+        self.assertContains(response, "近い学会")
+
+    def test_dashboard_excludes_past_events(self):
+        ScheduleEvent.objects.create(
+            user=self.user,
+            title="終わった予定",
+            start_at=timezone.now() - timedelta(days=1),
+            event_type=EventType.TASK,
+        )
+        response = self.client.get(reverse("research:dashboard"))
+        self.assertNotContains(response, "終わった予定")

@@ -1,0 +1,20 @@
+{# チェックリスト全体（項目追加時の差し替え対象）#}
+<ul class="list-unstyled mb-3">
+  {% for item in prep.checklist_items.all %}
+    {% include "research/partials/checklist_item.html" with item=item %}
+  {% empty %}
+    <li class="text-secondary">チェックリスト項目がありません。</li>
+  {% endfor %}
+</ul>
+
+<form class="row g-2"
+      hx-post="{% url 'research:checklist_item_create' prep.pk %}"
+      hx-target="#checklist-{{ prep.pk }}"
+      hx-swap="innerHTML">
+  {% csrf_token %}
+  <div class="col">{{ item_form.item }}</div>
+  <div class="col-auto">
+    <button type="submit" class="btn btn-sm btn-outline-primary">項目を追加</button>
+  </div>
+  {% for error in item_form.item.errors %}<div class="col-12 text-danger small">{{ error }}</div>{% endfor %}
+</form>

@@ -1,0 +1,29 @@
+{% extends "base.html" %}
+{% block title %}研究スケジュール | 研究室統合プラットフォーム{% endblock %}
+{% block heading %}研究スケジュール{% endblock %}
+
+{% block content %}
+<div class="row g-3">
+  <div class="col-lg-8">
+    <div id="schedule-calendar">
+      {% include "research/partials/schedule_calendar.html" %}
+    </div>
+  </div>
+
+  <div class="col-lg-4">
+    <div class="card">
+      <div class="card-header">予定の追加</div>
+      <div class="card-body">
+        {# htmx でカレンダー部分のみ差し替える（詳細設計書 4章 POST /schedule/events）#}
+        <form hx-post="{% url 'research:schedule_event_create' %}"
+              hx-target="#schedule-calendar"
+              hx-swap="innerHTML">
+          {% csrf_token %}
+          {% include "research/partials/schedule_form_fields.html" %}
+          <button type="submit" class="btn btn-primary w-100">追加</button>
+        </form>
+      </div>
+    </div>
+  </div>
+</div>
+{% endblock %}

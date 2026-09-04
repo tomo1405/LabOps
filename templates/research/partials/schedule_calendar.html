@@ -1,0 +1,59 @@
+{# カレンダー本体（htmx の差し替え対象）#}
+<div class="card">
+  <div class="card-header d-flex justify-content-between align-items-center">
+    <a class="btn btn-sm btn-outline-secondary"
+       href="{% url 'research:schedule' %}?year={{ prev_year }}&month={{ prev_month }}">前月</a>
+    <strong>{{ year }}年{{ month }}月</strong>
+    <a class="btn btn-sm btn-outline-secondary"
+       href="{% url 'research:schedule' %}?year={{ next_year }}&month={{ next_month }}">翌月</a>
+  </div>
+  <div class="card-body p-2">
+    {% if form.errors %}
+      <div class="alert alert-danger">入力内容を確認してください。</div>
+    {% endif %}
+    {% if created_event %}
+      <div class="alert alert-success py-2">「{{ created_event.title }}」を追加しました。</div>
+    {% endif %}
+    <table class="table table-bordered calendar-table mb-0">
+      <thead>
+        <tr>
+          {% for label in weekday_labels %}<th class="text-center">{{ label }}</th>{% endfor %}
+        </tr>
+      </thead>
+      <tbody>
+        {% for week in weeks %}
+          <tr>
+            {% for day in week %}
+              <td class="{% if not day.in_month %}out-of-month{% endif %} {% if day.is_today %}today{% endif %}">
+                <div class="fw-semibold">{{ day.date.day }}</div>
+                {% for event in day.events %}
+                  <span class="calendar-event {{ event.event_type }}" title="{{ event.title }}">
+                    {{ event.start_at|date:"H:i" }} {{ event.title }}
+                  </span>
+                {% endfor %}
+              </td>
+            {% endfor %}
+          </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+</div>
+
+<div class="card mt-3">
+  <div class="card-header">{{ year }}年{{ month }}月の予定一覧</div>
+  <ul class="list-group list-group-flush">
+    {% for event in events %}
+      <li class="list-group-item d-flex justify-content-between">
+        <span>
+          {{ event.start_at|date:"n/j H:i" }} {{ event.title }}
+          {% if event.conference %}<span class="badge text-bg-light">{{ event.conference.conference_name }}</span>{% endif %}
+          {% if event.is_shared %}<span class="badge text-bg-secondary">研究室共通</span>{% endif %}
+        </span>
+        <span class="badge text-bg-info">{{ event.get_event_type_display }}</span>
+      </li>
+    {% empty %}
+      <li class="list-group-item text-secondary">この月の予定はありません。</li>
+    {% endfor %}
+  </ul>
+</div>

@@ -1,0 +1,30 @@
+{# 予定追加フォームの入力欄（htmx でのエラー再描画時にも再利用する）#}
+<div class="mb-3">
+  <label class="form-label" for="{{ form.title.id_for_label }}">{{ form.title.label }}</label>
+  {{ form.title }}
+  {% for error in form.title.errors %}<div class="text-danger small">{{ error }}</div>{% endfor %}
+</div>
+<div class="mb-3">
+  <label class="form-label" for="{{ form.start_at.id_for_label }}">{{ form.start_at.label }}</label>
+  {{ form.start_at }}
+  {% for error in form.start_at.errors %}<div class="text-danger small">{{ error }}</div>{% endfor %}
+</div>
+<div class="mb-3">
+  <label class="form-label" for="{{ form.end_at.id_for_label }}">{{ form.end_at.label }}</label>
+  {{ form.end_at }}
+  {% for error in form.end_at.errors %}<div class="text-danger small">{{ error }}</div>{% endfor %}
+</div>
+<div class="mb-3">
+  <label class="form-label" for="{{ form.event_type.id_for_label }}">{{ form.event_type.label }}</label>
+  {{ form.event_type }}
+  {% for error in form.event_type.errors %}<div class="text-danger small">{{ error }}</div>{% endfor %}
+</div>
+<div class="mb-3">
+  <label class="form-label" for="{{ form.conference.id_for_label }}">{{ form.conference.label }}</label>
+  {{ form.conference }}
+</div>
+<div class="form-check mb-3">
+  <input class="form-check-input" type="checkbox" name="is_shared" id="id_is_shared" value="1">
+  <label class="form-check-label" for="id_is_shared">研究室共通の予定にする</label>
+</div>
+{{ form.user }}
