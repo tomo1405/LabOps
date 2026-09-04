@@ -1,4 +1,4 @@
-{% load static %}<!DOCTYPE html>
+{% load static navigation %}<!DOCTYPE html>
 <html lang="ja">
 <head>
   <meta charset="utf-8">
@@ -18,14 +18,42 @@
       <span class="visually-hidden">LabOps 研究室統合プラットフォーム</span>
     </a>
     {% if user.is_authenticated %}
-      <ul class="navbar-nav me-auto flex-row gap-3">
-        <li class="nav-item"><a class="nav-link" href="{% url 'research:dashboard' %}">ホーム</a></li>
-        <li class="nav-item"><a class="nav-link" href="{% url 'research:diary_list' %}">研究日記</a></li>
-        <li class="nav-item"><a class="nav-link" href="{% url 'research:schedule' %}">スケジュール</a></li>
-        <li class="nav-item"><a class="nav-link" href="{% url 'research:conference_list' %}">学会準備</a></li>
-        <li class="nav-item"><a class="nav-link" href="{% url 'community:attendance_list' %}">在室</a></li>
-        <li class="nav-item"><a class="nav-link" href="{% url 'community:canteen_today' %}">学食</a></li>
-        <li class="nav-item"><a class="nav-link" href="{% url 'community:news_list' %}">News</a></li>
+      <ul class="navbar-nav me-auto flex-row gap-2">
+        {% nav_active 'research:dashboard' as is_home %}
+        <li class="nav-item">
+          <a class="nav-link {{ is_home }}" href="{% url 'research:dashboard' %}"
+             {% if is_home %}aria-current="page"{% endif %}>ホーム</a>
+        </li>
+        {% nav_active 'research:diary' as is_diary %}
+        <li class="nav-item">
+          <a class="nav-link {{ is_diary }}" href="{% url 'research:diary_list' %}"
+             {% if is_diary %}aria-current="page"{% endif %}>研究日記</a>
+        </li>
+        {% nav_active 'research:schedule' as is_schedule %}
+        <li class="nav-item">
+          <a class="nav-link {{ is_schedule }}" href="{% url 'research:schedule' %}"
+             {% if is_schedule %}aria-current="page"{% endif %}>スケジュール</a>
+        </li>
+        {% nav_active 'research:conference' 'research:checklist' as is_conference %}
+        <li class="nav-item">
+          <a class="nav-link {{ is_conference }}" href="{% url 'research:conference_list' %}"
+             {% if is_conference %}aria-current="page"{% endif %}>学会準備</a>
+        </li>
+        {% nav_active 'community:attendance' as is_attendance %}
+        <li class="nav-item">
+          <a class="nav-link {{ is_attendance }}" href="{% url 'community:attendance_list' %}"
+             {% if is_attendance %}aria-current="page"{% endif %}>在室</a>
+        </li>
+        {% nav_active 'community:canteen' as is_canteen %}
+        <li class="nav-item">
+          <a class="nav-link {{ is_canteen }}" href="{% url 'community:canteen_today' %}"
+             {% if is_canteen %}aria-current="page"{% endif %}>学食</a>
+        </li>
+        {% nav_active 'community:news' as is_news %}
+        <li class="nav-item">
+          <a class="nav-link {{ is_news }}" href="{% url 'community:news_list' %}"
+             {% if is_news %}aria-current="page"{% endif %}>News</a>
+        </li>
       </ul>
       <div class="d-flex align-items-center gap-3">
         <span class="navbar-text">{{ user.name }}</span>
@@ -46,6 +74,8 @@
       </div>
     {% endfor %}
   {% endif %}
+
+  {% block breadcrumb %}{% endblock %}
 
   <div class="d-flex justify-content-between align-items-center mb-3">
     <h1 class="h3 mb-0">{% block heading %}{% endblock %}</h1>

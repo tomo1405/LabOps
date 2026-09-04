@@ -2,6 +2,15 @@
 {% block title %}学食メニューの削除 | LabOps{% endblock %}
 {% block heading %}学食メニューの削除{% endblock %}
 
+{% block breadcrumb %}
+<nav aria-label="現在の位置">
+  <ol class="breadcrumb small">
+    <li class="breadcrumb-item"><a href="{% url 'community:canteen_today' %}">学食メニュー</a></li>
+    <li class="breadcrumb-item active" aria-current="page">削除</li>
+  </ol>
+</nav>
+{% endblock %}
+
 {% block content %}
 <div class="row">
   <div class="col-lg-6">

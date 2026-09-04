@@ -7,6 +7,15 @@
   {% endif %}
 {% endblock %}
 
+{% block breadcrumb %}
+<nav aria-label="現在の位置">
+  <ol class="breadcrumb small">
+    <li class="breadcrumb-item"><a href="{% url 'research:conference_list' %}">学会準備</a></li>
+    <li class="breadcrumb-item active" aria-current="page">{% if prep %}編集{% else %}新規登録{% endif %}</li>
+  </ol>
+</nav>
+{% endblock %}
+
 {% block content %}
 <div class="row">
   <div class="col-lg-8">

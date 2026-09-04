@@ -2,6 +2,15 @@
 {% block title %}News記事の削除 | LabOps{% endblock %}
 {% block heading %}News記事の削除{% endblock %}
 
+{% block breadcrumb %}
+<nav aria-label="現在の位置">
+  <ol class="breadcrumb small">
+    <li class="breadcrumb-item"><a href="{% url 'community:news_list' %}">研究室News</a></li>
+    <li class="breadcrumb-item active" aria-current="page">削除</li>
+  </ol>
+</nav>
+{% endblock %}
+
 {% block content %}
 <div class="row">
   <div class="col-lg-8">

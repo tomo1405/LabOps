@@ -2,6 +2,15 @@
 {% block title %}予定の削除 | LabOps{% endblock %}
 {% block heading %}予定の削除{% endblock %}
 
+{% block breadcrumb %}
+<nav aria-label="現在の位置">
+  <ol class="breadcrumb small">
+    <li class="breadcrumb-item"><a href="{% url 'research:schedule' %}">研究スケジュール</a></li>
+    <li class="breadcrumb-item active" aria-current="page">予定の削除</li>
+  </ol>
+</nav>
+{% endblock %}
+
 {% block content %}
 <div class="row">
   <div class="col-lg-6">

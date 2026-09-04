@@ -5,6 +5,15 @@
   <a class="btn btn-outline-danger" href="{% url 'research:schedule_event_delete' event.pk %}">削除</a>
 {% endblock %}
 
+{% block breadcrumb %}
+<nav aria-label="現在の位置">
+  <ol class="breadcrumb small">
+    <li class="breadcrumb-item"><a href="{% url 'research:schedule' %}">研究スケジュール</a></li>
+    <li class="breadcrumb-item active" aria-current="page">予定の編集</li>
+  </ol>
+</nav>
+{% endblock %}
+
 {% block content %}
 <div class="row">
   <div class="col-lg-6">
