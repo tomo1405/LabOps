@@ -105,6 +105,35 @@ def diary_detail(request: HttpRequest, pk: int) -> HttpResponse:
     return render(request, "research/diary_detail.html", {"entry": entry})
 
 
+@login_required
+def diary_update(request: HttpRequest, pk: int) -> HttpResponse:
+    """GET/POST /diary/<id>/edit : 研究日記の編集（本人分のみ）。"""
+    entry = get_object_or_404(DiaryEntry, pk=pk, user=request.user)
+    if request.method == "POST":
+        form = DiaryEntryForm(request.POST, instance=entry)
+        if form.is_valid():
+            form.save()
+            messages.success(request, "研究日記を更新しました。")
+            return redirect("research:diary_detail", pk=entry.pk)
+    else:
+        form = DiaryEntryForm(instance=entry)
+    return render(request, "research/diary_form.html", {"form": form, "entry": entry})
+
+
+@login_required
+def diary_delete(request: HttpRequest, pk: int) -> HttpResponse:
+    """GET/POST /diary/<id>/delete : 研究日記の削除（本人分のみ）。
+
+    GET は確認画面を表示し、POST で実際に削除する。
+    """
+    entry = get_object_or_404(DiaryEntry, pk=pk, user=request.user)
+    if request.method == "POST":
+        entry.delete()
+        messages.success(request, "研究日記を削除しました。")
+        return redirect("research:diary_list")
+    return render(request, "research/diary_confirm_delete.html", {"entry": entry})
+
+
 # --- 研究スケジュール -----------------------------------------------------
 
 

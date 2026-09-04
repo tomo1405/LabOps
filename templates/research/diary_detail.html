@@ -2,7 +2,11 @@
 {% block title %}{{ entry.date }} の研究日記 | 研究室統合プラットフォーム{% endblock %}
 {% block heading %}{{ entry.date }} の研究日記{% endblock %}
 {% block heading_actions %}
-  <a class="btn btn-outline-secondary" href="{% url 'research:diary_list' %}">一覧へ</a>
+  <div class="d-flex gap-2">
+    <a class="btn btn-outline-secondary" href="{% url 'research:diary_list' %}">一覧へ</a>
+    <a class="btn btn-primary" href="{% url 'research:diary_update' entry.pk %}">編集</a>
+    <a class="btn btn-outline-danger" href="{% url 'research:diary_delete' entry.pk %}">削除</a>
+  </div>
 {% endblock %}
 
 {% block content %}

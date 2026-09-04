@@ -12,6 +12,8 @@ urlpatterns = [
     path("diary/", views.diary_list, name="diary_list"),
     path("diary/new", views.diary_create, name="diary_create"),
     path("diary/<int:pk>", views.diary_detail, name="diary_detail"),
+    path("diary/<int:pk>/edit", views.diary_update, name="diary_update"),
+    path("diary/<int:pk>/delete", views.diary_delete, name="diary_delete"),
     # 研究スケジュール
     path("schedule/", views.schedule_calendar, name="schedule"),
     path("schedule/events", views.schedule_event_create, name="schedule_event_create"),

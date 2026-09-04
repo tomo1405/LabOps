@@ -26,6 +26,8 @@ class LoginRequiredTests(TestCase):
             reverse("research:dashboard"),
             reverse("research:diary_list"),
             reverse("research:diary_create"),
+            reverse("research:diary_update", args=[1]),
+            reverse("research:diary_delete", args=[1]),
             reverse("research:schedule"),
             reverse("research:conference_list"),
             reverse("research:conference_create"),
@@ -85,6 +87,74 @@ class DiaryViewTests(AuthenticatedTestCase):
         entry = DiaryEntry.objects.create(user=self.other, date=timezone.localdate(), content="秘密")
         response = self.client.get(reverse("research:diary_detail", args=[entry.pk]))
         self.assertEqual(response.status_code, 404)
+
+
+class DiaryUpdateDeleteTests(AuthenticatedTestCase):
+    """研究日記の更新・削除（CRUDのU・D）。"""
+
+    def setUp(self):
+        super().setUp()
+        self.entry = DiaryEntry.objects.create(
+            user=self.user, date=timezone.localdate(), content="修正前の本文", tags="実験"
+        )
+
+    def test_edit_form_shows_current_values(self):
+        response = self.client.get(reverse("research:diary_update", args=[self.entry.pk]))
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(response, "修正前の本文")
+
+    def test_update_changes_content_and_keeps_owner(self):
+        response = self.client.post(
+            reverse("research:diary_update", args=[self.entry.pk]),
+            {"date": "2026-09-01", "content": "修正後の本文", "tags": "実験, 解析"},
+        )
+        self.assertRedirects(response, reverse("research:diary_detail", args=[self.entry.pk]))
+        self.entry.refresh_from_db()
+        self.assertEqual(self.entry.content, "修正後の本文")
+        self.assertEqual(self.entry.tag_list(), ["実験", "解析"])
+        self.assertEqual(self.entry.user, self.user)
+
+    def test_update_rejects_empty_content(self):
+        response = self.client.post(
+            reverse("research:diary_update", args=[self.entry.pk]),
+            {"date": "2026-09-01", "content": "", "tags": ""},
+        )
+        self.assertEqual(response.status_code, 200)
+        self.entry.refresh_from_db()
+        self.assertEqual(self.entry.content, "修正前の本文")
+
+    def test_update_does_not_create_new_entry(self):
+        self.client.post(
+            reverse("research:diary_update", args=[self.entry.pk]),
+            {"date": "2026-09-01", "content": "修正後の本文", "tags": ""},
+        )
+        self.assertEqual(DiaryEntry.objects.count(), 1)
+
+    def test_cannot_edit_other_user_entry(self):
+        entry = DiaryEntry.objects.create(user=self.other, date=timezone.localdate(), content="秘密")
+        response = self.client.post(
+            reverse("research:diary_update", args=[entry.pk]),
+            {"date": "2026-09-01", "content": "書き換え", "tags": ""},
+        )
+        self.assertEqual(response.status_code, 404)
+        entry.refresh_from_db()
+        self.assertEqual(entry.content, "秘密")
+
+    def test_delete_confirmation_page_does_not_delete(self):
+        response = self.client.get(reverse("research:diary_delete", args=[self.entry.pk]))
+        self.assertEqual(response.status_code, 200)
+        self.assertTrue(DiaryEntry.objects.filter(pk=self.entry.pk).exists())
+
+    def test_delete_removes_entry(self):
+        response = self.client.post(reverse("research:diary_delete", args=[self.entry.pk]))
+        self.assertRedirects(response, reverse("research:diary_list"))
+        self.assertFalse(DiaryEntry.objects.filter(pk=self.entry.pk).exists())
+
+    def test_cannot_delete_other_user_entry(self):
+        entry = DiaryEntry.objects.create(user=self.other, date=timezone.localdate(), content="秘密")
+        response = self.client.post(reverse("research:diary_delete", args=[entry.pk]))
+        self.assertEqual(response.status_code, 404)
+        self.assertTrue(DiaryEntry.objects.filter(pk=entry.pk).exists())
 
 
 class ScheduleViewTests(AuthenticatedTestCase):
