@@ -240,6 +240,13 @@ class ScheduleEvent(models.Model):
         related_name="schedule_events",
         verbose_name="関連する学会準備",
     )
+    participants = models.ManyToManyField(
+        settings.AUTH_USER_MODEL,
+        blank=True,
+        related_name="participating_events",
+        verbose_name="参加者",
+        help_text="選んだメンバーのスケジュールにもこの予定が表示されます",
+    )
 
     class Meta:
         verbose_name = "研究スケジュール"
@@ -254,3 +261,14 @@ class ScheduleEvent(models.Model):
     def is_shared(self) -> bool:
         """研究室共通の予定（担当者なし）か。"""
         return self.user_id is None
+
+    def is_participant(self, user) -> bool:
+        """その人が参加者として登録されているか。"""
+        return self.participants.filter(pk=user.pk).exists()
+
+    def is_editable_by(self, user) -> bool:
+        """編集・削除できるか。作成者と、研究室共通予定なら全員。
+
+        参加者に追加されただけの人は、他人の予定を書き換えられない。
+        """
+        return self.is_shared or self.user_id == user.pk

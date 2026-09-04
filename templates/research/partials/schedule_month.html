@@ -1,0 +1,24 @@
+{# 月表示：週×日のグリッド。日付をクリックするとその日の表示へ移動する #}
+<table class="table table-bordered calendar-table mb-0">
+  <thead>
+    <tr>
+      {% for label in weekday_labels %}<th class="text-center">{{ label }}</th>{% endfor %}
+    </tr>
+  </thead>
+  <tbody>
+    {% for week in weeks %}
+      <tr>
+        {% for day in week %}
+          <td class="{% if not day.in_month %}out-of-month{% endif %} {% if day.is_today %}today{% endif %}">
+            <a class="calendar-day-link" href="{{ day.url }}">{{ day.date.day }}</a>
+            {% for event in day.events %}
+              <span class="calendar-event {{ event.event_type }}" title="{{ event.title }}">
+                {{ event.start_at|date:"H:i" }} {{ event.title }}
+              </span>
+            {% endfor %}
+          </td>
+        {% endfor %}
+      </tr>
+    {% endfor %}
+  </tbody>
+</table>

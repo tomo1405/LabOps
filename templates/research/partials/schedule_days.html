@@ -1,0 +1,37 @@
+{# 週表示（7日）と日表示（1日）で共用。日ごとに予定を時刻順で並べる #}
+<div class="schedule-days {% if view == 'week' %}week{% else %}day{% endif %}">
+  {% for day in days %}
+    <div class="schedule-day {% if day.is_today %}today{% endif %}">
+      <div class="schedule-day-head">
+        <a href="{{ day.url }}">{{ day.date|date:"n/j" }}（{{ day.weekday }}）</a>
+        {% if day.is_today %}<span class="badge text-bg-primary">今日</span>{% endif %}
+      </div>
+      <ul class="schedule-day-events">
+        {% for event in day.events %}
+          <li class="schedule-slot {{ event.event_type }}">
+            <span class="schedule-slot-time">
+              {{ event.start_at|date:"H:i" }}{% if event.end_at %}〜{{ event.end_at|date:"H:i" }}{% endif %}
+            </span>
+            <span class="schedule-slot-title">{{ event.title }}</span>
+            <span class="schedule-slot-meta">
+              {% if event.is_shared %}
+                <span class="badge text-bg-secondary">研究室共通</span>
+              {% elif event.user_id != user.pk %}
+                <span class="badge text-bg-warning">{{ event.user.name }}</span>
+              {% endif %}
+              {% with names=event.participants.all %}
+                {% if names %}
+                  <span class="text-secondary">
+                    参加 {% for p in names %}{{ p.name }}{% if not forloop.last %}, {% endif %}{% endfor %}
+                  </span>
+                {% endif %}
+              {% endwith %}
+            </span>
+          </li>
+        {% empty %}
+          <li class="schedule-empty">予定なし</li>
+        {% endfor %}
+      </ul>
+    </div>
+  {% endfor %}
+</div>

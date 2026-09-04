@@ -49,8 +49,8 @@ def _visible_diaries(user):
 
 
 def _visible_events(user):
-    """本人の予定と研究室共通予定を対象とする QuerySet。"""
-    return ScheduleEvent.objects.filter(Q(user=user) | Q(user__isnull=True))
+    """本人の予定・研究室共通予定・自分が参加者に入っている予定を対象とする QuerySet。"""
+    return ScheduleEvent.objects.filter(Q(user=user) | Q(user__isnull=True) | Q(participants=user)).distinct()
 
 
 # --- ダッシュボード -------------------------------------------------------
@@ -268,11 +268,8 @@ def diary_comment_delete(request: HttpRequest, pk: int, comment_id: int) -> Http
 # --- 研究スケジュール -----------------------------------------------------
 
 
-def _month_range(year: int, month: int) -> tuple[date, date]:
-    """指定月の初日と翌月初日（いずれもローカル日付）を返す。"""
-    first = date(year, month, 1)
-    last_day = calendar.monthrange(year, month)[1]
-    return first, first + timedelta(days=last_day)
+SCHEDULE_VIEWS = ("month", "week", "day")
+WEEKDAY_LABELS = ["日", "月", "火", "水", "木", "金", "土"]
 
 
 def _as_local_start_of_day(day: date) -> datetime:
@@ -280,75 +277,171 @@ def _as_local_start_of_day(day: date) -> datetime:
     return timezone.make_aware(datetime.combine(day, time.min))
 
 
-def _build_calendar(year: int, month: int, events) -> list[list[dict]]:
-    """カレンダー表示用に「週 × 日」の構造を組み立てる。"""
-    events_by_date: dict[date, list[ScheduleEvent]] = {}
+def _weekday_label(day: date) -> str:
+    """日曜始まりの曜日ラベル。"""
+    return WEEKDAY_LABELS[(day.weekday() + 1) % 7]
+
+
+def _week_start(day: date) -> date:
+    """その日を含む週の日曜日を返す（カレンダーの週始まりに合わせる）。"""
+    return day - timedelta(days=(day.weekday() + 1) % 7)
+
+
+def _period_range(view: str, anchor: date) -> tuple[date, date]:
+    """表示単位ごとの [開始日, 終了日) を返す。"""
+    if view == "day":
+        return anchor, anchor + timedelta(days=1)
+    if view == "week":
+        start = _week_start(anchor)
+        return start, start + timedelta(days=7)
+    first = anchor.replace(day=1)
+    return first, first + timedelta(days=calendar.monthrange(first.year, first.month)[1])
+
+
+def _shift_anchor(view: str, anchor: date, direction: int) -> date:
+    """前後の期間の基準日を返す。"""
+    if view == "day":
+        return anchor + timedelta(days=direction)
+    if view == "week":
+        return anchor + timedelta(days=7 * direction)
+    first = anchor.replace(day=1)
+    if direction < 0:
+        return (first - timedelta(days=1)).replace(day=1)
+    return first + timedelta(days=calendar.monthrange(first.year, first.month)[1])
+
+
+def _period_label(view: str, anchor: date) -> str:
+    """画面上部に出す期間の見出し。"""
+    if view == "day":
+        return f"{anchor.year}年{anchor.month}月{anchor.day}日（{_weekday_label(anchor)}）"
+    if view == "week":
+        start, end = _period_range(view, anchor)
+        last = end - timedelta(days=1)
+        if start.month == last.month:
+            return f"{start.year}年{start.month}月{start.day}日 〜 {last.day}日"
+        return f"{start.year}年{start.month}月{start.day}日 〜 {last.month}月{last.day}日"
+    return f"{anchor.year}年{anchor.month}月"
+
+
+def _schedule_url(view: str, anchor: date) -> str:
+    return f"{reverse('research:schedule')}?view={view}&date={anchor.isoformat()}"
+
+
+def _events_by_date(events) -> dict:
+    grouped: dict = {}
     for event in events:
-        key = timezone.localtime(event.start_at).date()
-        events_by_date.setdefault(key, []).append(event)
+        grouped.setdefault(timezone.localtime(event.start_at).date(), []).append(event)
+    return grouped
 
+
+def _build_month_weeks(anchor: date, grouped: dict, today: date) -> list:
+    """月表示用に「週 × 日」の構造を組み立てる。"""
     cal = calendar.Calendar(firstweekday=calendar.SUNDAY)
-    today = timezone.localdate()
-    weeks = []
-    for week in cal.monthdatescalendar(year, month):
-        weeks.append(
-            [
-                {
-                    "date": day,
-                    "in_month": day.month == month,
-                    "is_today": day == today,
-                    "events": events_by_date.get(day, []),
-                }
-                for day in week
-            ]
+    return [
+        [
+            {
+                "date": day,
+                "in_month": day.month == anchor.month,
+                "is_today": day == today,
+                "events": grouped.get(day, []),
+                "url": _schedule_url("day", day),
+            }
+            for day in week
+        ]
+        for week in cal.monthdatescalendar(anchor.year, anchor.month)
+    ]
+
+
+def _build_days(start: date, count: int, grouped: dict, today: date) -> list:
+    """週・日表示用に、日ごとの予定をまとめる。"""
+    days = []
+    for offset in range(count):
+        day = start + timedelta(days=offset)
+        days.append(
+            {
+                "date": day,
+                "weekday": _weekday_label(day),
+                "is_today": day == today,
+                "events": grouped.get(day, []),
+                "url": _schedule_url("day", day),
+            }
         )
-    return weeks
+    return days
 
 
-def _schedule_context(request: HttpRequest, year: int, month: int) -> dict:
-    first, next_first = _month_range(year, month)
+def _schedule_context(request: HttpRequest, view: str, anchor: date) -> dict:
+    start, end = _period_range(view, anchor)
     events = list(
         _visible_events(request.user)
         .filter(
-            start_at__gte=_as_local_start_of_day(first),
-            start_at__lt=_as_local_start_of_day(next_first),
+            start_at__gte=_as_local_start_of_day(start),
+            start_at__lt=_as_local_start_of_day(end),
         )
         .select_related("user", "conference")
+        .prefetch_related("participants")
     )
-    prev_month = first - timedelta(days=1)
-    return {
-        "year": year,
-        "month": month,
-        "weeks": _build_calendar(year, month, events),
+    grouped = _events_by_date(events)
+    today = timezone.localdate()
+
+    context = {
+        "view": view,
+        "anchor": anchor,
         "events": events,
-        "prev_year": prev_month.year,
-        "prev_month": prev_month.month,
-        "next_year": next_first.year,
-        "next_month": next_first.month,
-        "weekday_labels": ["日", "月", "火", "水", "木", "金", "土"],
+        "period_label": _period_label(view, anchor),
+        "prev_url": _schedule_url(view, _shift_anchor(view, anchor, -1)),
+        "next_url": _schedule_url(view, _shift_anchor(view, anchor, 1)),
+        "today_url": _schedule_url(view, today),
+        "month_url": _schedule_url("month", anchor),
+        "week_url": _schedule_url("week", anchor),
+        "day_url": _schedule_url("day", anchor),
+        "weekday_labels": WEEKDAY_LABELS,
     }
+    if view == "month":
+        context["weeks"] = _build_month_weeks(anchor, grouped, today)
+    elif view == "week":
+        context["days"] = _build_days(start, 7, grouped, today)
+    else:
+        context["days"] = _build_days(start, 1, grouped, today)
+    return context
 
 
-def _schedule_url_for(event: ScheduleEvent) -> str:
-    """その予定が属する月のカレンダーURLを返す。"""
-    target = timezone.localtime(event.start_at).date()
-    return f"{reverse('research:schedule')}?year={target.year}&month={target.month}"
+def _schedule_url_for(event: ScheduleEvent, view: str = "month") -> str:
+    """その予定が含まれる期間のカレンダーURLを返す。"""
+    return _schedule_url(view, timezone.localtime(event.start_at).date())
+
+
+def _requested_view(request: HttpRequest) -> str:
+    view = request.GET.get("view") or request.POST.get("view") or "month"
+    return view if view in SCHEDULE_VIEWS else "month"
+
+
+def _requested_anchor(request: HttpRequest) -> date:
+    """表示の基準日。date= を優先し、旧来の year/month 指定にも対応する。"""
+    raw = request.GET.get("date") or request.POST.get("date")
+    if raw:
+        try:
+            return date.fromisoformat(raw)
+        except ValueError as exc:
+            raise Http404("日付の指定が不正です。") from exc
+
+    today = timezone.localdate()
+    if "year" in request.GET or "month" in request.GET:
+        try:
+            year = int(request.GET.get("year", today.year))
+            month = int(request.GET.get("month", today.month))
+            return date(year, month, 1)
+        except ValueError as exc:
+            raise Http404("年月の指定が不正です。") from exc
+    return today
 
 
 @login_required
 @require_GET
 def schedule_calendar(request: HttpRequest) -> HttpResponse:
-    """GET /schedule/ : スケジュール（月次カレンダー）。"""
-    today = timezone.localdate()
-    try:
-        year = int(request.GET.get("year", today.year))
-        month = int(request.GET.get("month", today.month))
-    except ValueError as exc:
-        raise Http404("年月の指定が不正です。") from exc
-    if not 1 <= month <= 12:
-        raise Http404("年月の指定が不正です。")
-
-    context = _schedule_context(request, year, month)
+    """GET /schedule/ : スケジュール。view=month|week|day で表示単位を切り替える。"""
+    view = _requested_view(request)
+    anchor = _requested_anchor(request)
+    context = _schedule_context(request, view, anchor)
     context["form"] = ScheduleEventForm(user=request.user)
     return render(request, "research/schedule.html", context)
 
@@ -356,24 +449,22 @@ def schedule_calendar(request: HttpRequest) -> HttpResponse:
 @login_required
 @require_POST
 def schedule_event_create(request: HttpRequest) -> HttpResponse:
-    """POST /schedule/events : 予定作成（htmx）。カレンダー部分のみ差し替える。"""
+    """POST /schedule/events : 予定作成（htmx）。表示中の単位のまま差し替える。"""
+    view = _requested_view(request)
     form = ScheduleEventForm(request.POST, user=request.user)
     if form.is_valid():
         event = form.save(commit=False)
         # 共通予定フラグが付いていない限り、作成者を担当者にする
-        if not request.POST.get("is_shared"):
-            event.user = request.user
-        else:
-            event.user = None
+        event.user = None if request.POST.get("is_shared") else request.user
         event.save()
+        form.save_m2m()
         target = timezone.localtime(event.start_at).date()
-        context = _schedule_context(request, target.year, target.month)
+        context = _schedule_context(request, view, target)
         context["form"] = ScheduleEventForm(user=request.user)
         context["created_event"] = event
         return render(request, "research/partials/schedule_calendar.html", context)
 
-    today = timezone.localdate()
-    context = _schedule_context(request, today.year, today.month)
+    context = _schedule_context(request, view, _requested_anchor(request))
     context["form"] = form
     return render(request, "research/partials/schedule_calendar.html", context, status=400)
 
@@ -381,10 +472,10 @@ def schedule_event_create(request: HttpRequest) -> HttpResponse:
 def _editable_event(request: HttpRequest, pk: int) -> ScheduleEvent:
     """編集・削除できる予定を取得する。
 
-    本人の予定に加えて、研究室共通の予定（担当者なし）も対象とする。
-    共通予定は誰でも作成できる設計のため、編集・削除も全メンバーに開いている。
+    本人の予定と研究室共通の予定（担当者なし）が対象。
+    参加者として追加されただけの人は、他人の予定を書き換えられない。
     """
-    return get_object_or_404(_visible_events(request.user), pk=pk)
+    return get_object_or_404(ScheduleEvent.objects.filter(Q(user=request.user) | Q(user__isnull=True)), pk=pk)
 
 
 @login_required
@@ -397,8 +488,9 @@ def schedule_event_update(request: HttpRequest, pk: int) -> HttpResponse:
             updated = form.save(commit=False)
             updated.user = None if request.POST.get("is_shared") else request.user
             updated.save()
+            form.save_m2m()
             messages.success(request, "予定を更新しました。")
-            return redirect(_schedule_url_for(updated))
+            return redirect(_schedule_url_for(updated, _requested_view(request)))
     else:
         form = ScheduleEventForm(instance=event, user=request.user)
     return render(
@@ -413,7 +505,7 @@ def schedule_event_delete(request: HttpRequest, pk: int) -> HttpResponse:
     """GET/POST /schedule/events/<id>/delete : 予定の削除（GETは確認画面）。"""
     event = _editable_event(request, pk)
     if request.method == "POST":
-        redirect_to = _schedule_url_for(event)
+        redirect_to = _schedule_url_for(event, _requested_view(request))
         event.delete()
         messages.success(request, "予定を削除しました。")
         return redirect(redirect_to)

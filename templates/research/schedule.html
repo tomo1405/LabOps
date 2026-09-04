@@ -19,6 +19,9 @@
               hx-target="#schedule-calendar"
               hx-swap="innerHTML">
           {% csrf_token %}
+          {# 追加後も同じ表示単位のまま差し替えるため、現在の表示状態を送る #}
+          <input type="hidden" name="view" value="{{ view }}">
+          <input type="hidden" name="date" value="{{ anchor|date:'Y-m-d' }}">
           {% include "research/partials/schedule_form_fields.html" %}
           <button type="submit" class="btn btn-primary w-100">追加</button>
         </form>

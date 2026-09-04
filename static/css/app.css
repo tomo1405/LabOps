@@ -171,3 +171,89 @@
   background-color: rgba(255, 255, 255, 0.14);
   border-bottom-color: #2ec4b6;
 }
+
+/* 週・日表示 */
+.schedule-days {
+  display: grid;
+  gap: 0.5rem;
+}
+.schedule-days.week {
+  grid-template-columns: repeat(7, minmax(0, 1fr));
+}
+.schedule-days.day {
+  grid-template-columns: minmax(0, 1fr);
+}
+.schedule-day {
+  border: 1px solid var(--bs-border-color, #dee2e6);
+  border-radius: 0.25rem;
+  min-height: 8rem;
+  display: flex;
+  flex-direction: column;
+}
+.schedule-day.today {
+  border-color: #2ec4b6;
+  box-shadow: inset 0 2px 0 #2ec4b6;
+}
+.schedule-day-head {
+  padding: 0.35rem 0.5rem;
+  border-bottom: 1px solid var(--bs-border-color, #dee2e6);
+  font-size: 0.85rem;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 0.25rem;
+}
+.schedule-day-events {
+  list-style: none;
+  margin: 0;
+  padding: 0.35rem;
+  display: flex;
+  flex-direction: column;
+  gap: 0.35rem;
+}
+.schedule-slot {
+  border-left: 3px solid var(--bs-info, #0dcaf0);
+  background-color: var(--bs-tertiary-bg, #f8f9fa);
+  border-radius: 0.2rem;
+  padding: 0.3rem 0.45rem;
+  font-size: 0.85rem;
+}
+.schedule-slot.milestone {
+  border-left-color: var(--bs-danger, #dc3545);
+}
+.schedule-slot-time {
+  display: block;
+  font-variant-numeric: tabular-nums;
+  color: var(--bs-secondary-color, #6c757d);
+  font-size: 0.78rem;
+}
+.schedule-slot-title {
+  display: block;
+  font-weight: 600;
+}
+.schedule-slot-meta {
+  display: block;
+  font-size: 0.75rem;
+}
+.schedule-empty {
+  color: var(--bs-secondary-color, #6c757d);
+  font-size: 0.8rem;
+}
+.schedule-days.day .schedule-day { min-height: 12rem; }
+.calendar-day-link {
+  display: inline-block;
+  font-weight: 600;
+  text-decoration: none;
+}
+.calendar-day-link:hover { text-decoration: underline; }
+.participant-choices {
+  max-height: 9rem;
+  overflow-y: auto;
+  border: 1px solid var(--bs-border-color, #dee2e6);
+  border-radius: 0.25rem;
+  padding: 0.4rem 0.6rem;
+}
+
+@media (max-width: 768px) {
+  .schedule-days.week { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+}

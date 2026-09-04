@@ -23,6 +23,17 @@
   <label class="form-label" for="{{ form.conference.id_for_label }}">{{ form.conference.label }}</label>
   {{ form.conference }}
 </div>
+<div class="mb-3">
+  <label class="form-label">{{ form.participants.label }}</label>
+  <div class="participant-choices">
+    {% for choice in form.participants %}
+      <div class="form-check">{{ choice.tag }} <label class="form-check-label" for="{{ choice.id_for_label }}">{{ choice.choice_label }}</label></div>
+    {% empty %}
+      <p class="text-secondary small mb-0">他のメンバーが登録されていません。</p>
+    {% endfor %}
+  </div>
+  <div class="form-text">{{ form.participants.help_text }}</div>
+</div>
 <div class="form-check mb-3">
   <input class="form-check-input" type="checkbox" name="is_shared" id="id_is_shared" value="1"
          {% if is_shared %}checked{% endif %}>

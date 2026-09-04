@@ -1,6 +1,7 @@
 """優先度1: 研究支援系のフォーム。"""
 
 from django import forms
+from django.contrib.auth import get_user_model
 from django.utils import timezone
 
 from .models import (
@@ -71,13 +72,14 @@ class DiaryCommentForm(forms.ModelForm):
 class ScheduleEventForm(forms.ModelForm):
     class Meta:
         model = ScheduleEvent
-        fields = ["title", "start_at", "end_at", "event_type", "conference", "user"]
+        fields = ["title", "start_at", "end_at", "event_type", "conference", "participants", "user"]
         widgets = {
             "title": forms.TextInput(attrs={"class": "form-control"}),
             "start_at": forms.DateTimeInput(attrs={"type": "datetime-local", "class": "form-control"}),
             "end_at": forms.DateTimeInput(attrs={"type": "datetime-local", "class": "form-control"}),
             "event_type": forms.Select(attrs={"class": "form-select"}),
             "conference": forms.Select(attrs={"class": "form-select"}),
+            "participants": forms.CheckboxSelectMultiple(),
         }
 
     def __init__(self, *args, user=None, **kwargs):
@@ -88,8 +90,13 @@ class ScheduleEventForm(forms.ModelForm):
         self.fields["user"].widget = forms.HiddenInput()
         self.fields["conference"].required = False
         self.fields["conference"].empty_label = "（紐付けなし）"
+        self.fields["participants"].required = False
         if user is not None:
             self.fields["conference"].queryset = ConferencePrep.objects.filter(user=user)
+            # 作成者自身は常に予定に含まれるため、参加者の候補から外す
+            self.fields["participants"].queryset = (
+                get_user_model().objects.filter(is_active=True).exclude(pk=user.pk)
+            )
 
     def clean(self):
         cleaned = super().clean()

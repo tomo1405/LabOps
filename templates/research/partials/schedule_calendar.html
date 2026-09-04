@@ -1,12 +1,22 @@
-{# カレンダー本体（htmx の差し替え対象）#}
+{# カレンダー本体（htmx の差し替え対象）。view に応じて月・週・日を出し分ける #}
 <div class="card">
-  <div class="card-header d-flex justify-content-between align-items-center">
-    <a class="btn btn-sm btn-outline-secondary"
-       href="{% url 'research:schedule' %}?year={{ prev_year }}&month={{ prev_month }}">前月</a>
-    <strong>{{ year }}年{{ month }}月</strong>
-    <a class="btn btn-sm btn-outline-secondary"
-       href="{% url 'research:schedule' %}?year={{ next_year }}&month={{ next_month }}">翌月</a>
+  <div class="card-header d-flex flex-wrap justify-content-between align-items-center gap-2">
+    <div class="btn-group btn-group-sm" role="group" aria-label="表示単位">
+      <a class="btn {% if view == 'month' %}btn-primary{% else %}btn-outline-secondary{% endif %}"
+         href="{{ month_url }}">月</a>
+      <a class="btn {% if view == 'week' %}btn-primary{% else %}btn-outline-secondary{% endif %}"
+         href="{{ week_url }}">週</a>
+      <a class="btn {% if view == 'day' %}btn-primary{% else %}btn-outline-secondary{% endif %}"
+         href="{{ day_url }}">日</a>
+    </div>
+    <strong>{{ period_label }}</strong>
+    <div class="btn-group btn-group-sm" role="group" aria-label="期間の移動">
+      <a class="btn btn-outline-secondary" href="{{ prev_url }}">前へ</a>
+      <a class="btn btn-outline-secondary" href="{{ today_url }}">今日</a>
+      <a class="btn btn-outline-secondary" href="{{ next_url }}">次へ</a>
+    </div>
   </div>
+
   <div class="card-body p-2">
     {% if form.errors %}
       <div class="alert alert-danger">入力内容を確認してください。</div>
@@ -14,50 +24,47 @@
     {% if created_event %}
       <div class="alert alert-success py-2">「{{ created_event.title }}」を追加しました。</div>
     {% endif %}
-    <table class="table table-bordered calendar-table mb-0">
-      <thead>
-        <tr>
-          {% for label in weekday_labels %}<th class="text-center">{{ label }}</th>{% endfor %}
-        </tr>
-      </thead>
-      <tbody>
-        {% for week in weeks %}
-          <tr>
-            {% for day in week %}
-              <td class="{% if not day.in_month %}out-of-month{% endif %} {% if day.is_today %}today{% endif %}">
-                <div class="fw-semibold">{{ day.date.day }}</div>
-                {% for event in day.events %}
-                  <span class="calendar-event {{ event.event_type }}" title="{{ event.title }}">
-                    {{ event.start_at|date:"H:i" }} {{ event.title }}
-                  </span>
-                {% endfor %}
-              </td>
-            {% endfor %}
-          </tr>
-        {% endfor %}
-      </tbody>
-    </table>
+
+    {% if view == 'month' %}
+      {% include "research/partials/schedule_month.html" %}
+    {% else %}
+      {% include "research/partials/schedule_days.html" %}
+    {% endif %}
   </div>
 </div>
 
 <div class="card mt-3">
-  <div class="card-header">{{ year }}年{{ month }}月の予定一覧</div>
+  <div class="card-header">{{ period_label }}の予定一覧</div>
   <ul class="list-group list-group-flush">
     {% for event in events %}
-      <li class="list-group-item d-flex justify-content-between">
+      <li class="list-group-item d-flex justify-content-between align-items-start gap-2">
         <span>
-          {{ event.start_at|date:"n/j H:i" }} {{ event.title }}
+          {{ event.start_at|date:"n/j (D) H:i" }}
+          {% if event.end_at %}〜{{ event.end_at|date:"H:i" }}{% endif %}
+          {{ event.title }}
           {% if event.conference %}<span class="badge text-bg-light">{{ event.conference.conference_name }}</span>{% endif %}
           {% if event.is_shared %}<span class="badge text-bg-secondary">研究室共通</span>{% endif %}
+          {% if not event.is_shared and event.user_id != user.pk %}
+            <span class="badge text-bg-warning">{{ event.user.name }}の予定</span>
+          {% endif %}
+          {% with names=event.participants.all %}
+            {% if names %}
+              <span class="text-secondary small d-block">
+                参加: {% for p in names %}{{ p.name }}{% if not forloop.last %}, {% endif %}{% endfor %}
+              </span>
+            {% endif %}
+          {% endwith %}
         </span>
-        <span class="d-flex align-items-center gap-2">
+        <span class="d-flex align-items-center gap-2 flex-shrink-0">
           <span class="badge text-bg-info">{{ event.get_event_type_display }}</span>
-          <a class="btn btn-sm btn-outline-secondary"
-             href="{% url 'research:schedule_event_update' event.pk %}">編集</a>
+          {% if event.is_shared or event.user_id == user.pk %}
+            <a class="btn btn-sm btn-outline-secondary"
+               href="{% url 'research:schedule_event_update' event.pk %}?view={{ view }}">編集</a>
+          {% endif %}
         </span>
       </li>
     {% empty %}
-      <li class="list-group-item text-secondary">この月の予定はありません。</li>
+      <li class="list-group-item text-secondary">この期間の予定はありません。</li>
     {% endfor %}
   </ul>
 </div>
