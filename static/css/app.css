@@ -319,3 +319,29 @@
   align-items: center;
   flex-wrap: wrap;
 }
+
+/* 一覧行：本文が長くても行が横に伸びないようにする。
+   flex の子は既定で min-width:auto のため、text-truncate が効かずに枠を突き破る。 */
+.diary-row-main {
+  min-width: 0;
+}
+
+/* 幅の狭い画面では、ナビゲーションを折り返して横はみ出しを防ぐ */
+@media (max-width: 575.98px) {
+  .navbar > .container {
+    flex-wrap: wrap;
+    row-gap: 0.25rem;
+  }
+  .navbar-nav.flex-row {
+    flex-wrap: wrap;
+    row-gap: 0.25rem;
+  }
+  .navbar .nav-link {
+    padding-left: 0.4rem;
+    padding-right: 0.4rem;
+    font-size: 0.95rem;
+  }
+  .brand-logo {
+    height: 24px;
+  }
+}

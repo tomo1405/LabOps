@@ -93,6 +93,16 @@ class DiaryViewTests(AuthenticatedTestCase):
         self.assertContains(response, "輪読の記録")
         self.assertNotContains(response, "実験の記録")
 
+    def test_list_row_keeps_long_content_inside_the_row(self):
+        """長い本文で行が横に伸びないよう、flex の子に min-width の指定が入っている。
+
+        指定が外れると text-truncate が効かず、一覧が画面幅を突き破る。
+        """
+        DiaryEntry.objects.create(user=self.user, date=timezone.localdate(), content="A" * 400, tags="")
+        response = self.client.get(reverse("research:diary_list"))
+        self.assertContains(response, "diary-row-main")
+        self.assertContains(response, "text-truncate")
+
     def test_detail_of_other_user_entry_returns_404(self):
         entry = DiaryEntry.objects.create(user=self.other, date=timezone.localdate(), content="秘密")
         response = self.client.get(reverse("research:diary_detail", args=[entry.pk]))
