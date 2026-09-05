@@ -57,6 +57,9 @@
               {% endif %}
             {% endif %}
             {% for t in entry.tag_list %}<span class="badge text-bg-info">{{ t }}</span>{% endfor %}
+            {% if entry.like_count %}
+              <span class="text-secondary small" title="いいね">★ {{ entry.like_count }}</span>
+            {% endif %}
           </div>
           <div class="text-secondary text-truncate">{{ entry.content_excerpt }}</div>
           <span class="diary-row-more small">詳細を見る</span>

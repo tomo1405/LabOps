@@ -1,0 +1,21 @@
+{# いいねボタン（htmx での付け外しの差し替え対象）#}
+<div id="diary-like" class="diary-like">
+  <button type="button"
+          class="btn btn-sm {% if liked %}btn-primary{% else %}btn-outline-primary{% endif %}"
+          hx-post="{% url 'research:diary_like_toggle' entry.pk %}"
+          hx-target="#diary-like"
+          hx-swap="outerHTML"
+          hx-headers='{"X-CSRFToken": "{{ csrf_token }}"}'
+          aria-pressed="{% if liked %}true{% else %}false{% endif %}">
+    <span aria-hidden="true">{% if liked %}★{% else %}☆{% endif %}</span>
+    いいね
+    <span class="badge {% if liked %}text-bg-light{% else %}text-bg-secondary{% endif %}">{{ entry.like_count }}</span>
+  </button>
+  {% with people=entry.likes.all %}
+    {% if people %}
+      <span class="text-secondary small ms-2">
+        {% for person in people %}{{ person.name }}{% if not forloop.last %}, {% endif %}{% endfor %}
+      </span>
+    {% endif %}
+  {% endwith %}
+</div>

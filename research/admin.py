@@ -24,7 +24,12 @@ class DiaryCommentInline(admin.TabularInline):
 
 @admin.register(DiaryEntry)
 class DiaryEntryAdmin(admin.ModelAdmin):
-    list_display = ("date", "user", "visibility", "tags", "updated_at")
+    list_display = ("date", "user", "visibility", "tags", "like_total", "updated_at")
+
+    @admin.display(description="いいね")
+    def like_total(self, obj) -> int:
+        return obj.likes.count()
+
     list_filter = ("user", "visibility", "date")
     inlines = [DiaryAttachmentInline, DiaryCommentInline]
     search_fields = ("content", "tags")

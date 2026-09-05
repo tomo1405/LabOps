@@ -48,7 +48,11 @@ DASHBOARD_NEWS_LIMIT = 3
 
 def _visible_diaries(user):
     """本人の日記と、研究室内に公開された日記を対象とする QuerySet。"""
-    return DiaryEntry.objects.filter(Q(user=user) | Q(visibility=DiaryVisibility.LAB)).select_related("user")
+    return (
+        DiaryEntry.objects.filter(Q(user=user) | Q(visibility=DiaryVisibility.LAB))
+        .select_related("user")
+        .prefetch_related("likes")
+    )
 
 
 def _visible_events(user):
@@ -101,7 +105,9 @@ def diary_list(request: HttpRequest) -> HttpResponse:
     if scope == "lab":
         entries = _visible_diaries(request.user).filter(visibility=DiaryVisibility.LAB)
     else:
-        entries = DiaryEntry.objects.filter(user=request.user).select_related("user")
+        entries = (
+            DiaryEntry.objects.filter(user=request.user).select_related("user").prefetch_related("likes")
+        )
 
     # キーワード検索（本文・タグを対象）。空白区切りの語はすべて含むものに絞る（AND）
     query = request.GET.get("q", "").strip()
@@ -152,6 +158,7 @@ def diary_detail(request: HttpRequest, pk: int) -> HttpResponse:
         "research/diary_detail.html",
         {
             "entry": entry,
+            "liked": entry.is_liked_by(request.user),
             "attachment_form": DiaryAttachmentForm(),
             "comment_form": DiaryCommentForm(),
         },
@@ -185,6 +192,22 @@ def diary_delete(request: HttpRequest, pk: int) -> HttpResponse:
         messages.success(request, "研究日記を削除しました。")
         return redirect("research:diary_list")
     return render(request, "research/diary_confirm_delete.html", {"entry": entry})
+
+
+@login_required
+@require_POST
+def diary_like_toggle(request: HttpRequest, pk: int) -> HttpResponse:
+    """POST /diary/<id>/like : いいねの付け外し（htmx）。
+
+    閲覧できる日記（自分のもの、または研究室内に公開された日記）にだけ付けられる。
+    """
+    entry = get_object_or_404(_visible_diaries(request.user), pk=pk)
+    entry.toggle_like(request.user)
+    return render(
+        request,
+        "research/partials/diary_like.html",
+        {"entry": entry, "liked": entry.is_liked_by(request.user)},
+    )
 
 
 @login_required

@@ -41,6 +41,12 @@ class DiaryEntry(models.Model):
         default=DiaryVisibility.PRIVATE,
         help_text="研究室内に公開すると、他のメンバーも閲覧できます",
     )
+    likes = models.ManyToManyField(
+        settings.AUTH_USER_MODEL,
+        blank=True,
+        related_name="liked_diaries",
+        verbose_name="いいね",
+    )
     created_at = models.DateTimeField("作成日時", auto_now_add=True)
     updated_at = models.DateTimeField("更新日時", auto_now=True)
 
@@ -61,6 +67,21 @@ class DiaryEntry(models.Model):
     def is_public(self) -> bool:
         """研究室内に公開されているか。"""
         return self.visibility == DiaryVisibility.LAB
+
+    @property
+    def like_count(self) -> int:
+        return self.likes.count()
+
+    def is_liked_by(self, user) -> bool:
+        return self.likes.filter(pk=user.pk).exists()
+
+    def toggle_like(self, user) -> bool:
+        """いいねを付け外しし、操作後に「いいね済み」かを返す。"""
+        if self.is_liked_by(user):
+            self.likes.remove(user)
+            return False
+        self.likes.add(user)
+        return True
 
     @property
     def content_excerpt(self) -> str:

@@ -14,6 +14,7 @@ urlpatterns = [
     path("diary/<int:pk>", views.diary_detail, name="diary_detail"),
     path("diary/<int:pk>/edit", views.diary_update, name="diary_update"),
     path("diary/<int:pk>/delete", views.diary_delete, name="diary_delete"),
+    path("diary/<int:pk>/like", views.diary_like_toggle, name="diary_like_toggle"),
     path("diary/<int:pk>/attachments", views.diary_attachment_create, name="diary_attachment_create"),
     path(
         "diary/<int:pk>/attachments/<int:attachment_id>/file",
