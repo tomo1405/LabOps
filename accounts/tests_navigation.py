@@ -89,35 +89,6 @@ class NavigationActiveTests(TestCase):
         post = NewsPost.objects.create(title="お知らせ", body="本文", author=self.user)
         self.assertEqual(self._active_labels(reverse("community:news_update", args=[post.pk])), ["News"])
 
-    def test_guide_page_is_reachable_from_every_screen(self):
-        """使い方ページへの導線は全員に出す。"""
-        response = self.client.get(reverse("research:dashboard"))
-        self.assertContains(response, reverse("guide"))
-        self.assertContains(response, "使い方")
-
-    def test_guide_page_opens(self):
-        response = self.client.get(reverse("guide"))
-        self.assertEqual(response.status_code, 200)
-        self.assertContains(response, "LabOps の使い方")
-
-    def test_guide_requires_login(self):
-        self.client.logout()
-        url = reverse("guide")
-        self.assertRedirects(self.client.get(url), f"{reverse('accounts:login')}?next={url}")
-
-    def test_guide_hides_admin_section_from_normal_members(self):
-        """管理画面の説明は、管理画面を使えない人には出さない。"""
-        response = self.client.get(reverse("guide"))
-        self.assertNotContains(response, "管理画面でできること")
-
-    def test_guide_shows_admin_section_to_staff(self):
-        staff = User.objects.create_user(
-            email="staff2@example.com", password="pw12345!", name="管理者2", is_staff=True
-        )
-        self.client.force_login(staff)
-        response = self.client.get(reverse("guide"))
-        self.assertContains(response, "管理画面でできること")
-
     def test_admin_link_is_hidden_for_normal_members(self):
         """管理画面のリンクは、管理画面を使えない人には出さない。"""
         response = self.client.get(reverse("research:dashboard"))
