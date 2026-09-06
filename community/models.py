@@ -3,6 +3,7 @@
 import secrets
 
 from django.conf import settings
+from django.core.exceptions import ValidationError
 from django.db import models
 from django.utils import timezone
 
@@ -161,6 +162,86 @@ class AttendanceLog(models.Model):
 class MenuSource(models.TextChoices):
     MANUAL = "manual", "手動登録"
     SCRAPED = "scraped", "自動取得"
+
+
+class MeetingRoom(models.Model):
+    """研究室の会議室。管理サイトから登録する。"""
+
+    name = models.CharField("名称", max_length=50, help_text="例: 会議室A")
+    location = models.CharField("場所", max_length=100, blank=True)
+    capacity = models.PositiveIntegerField("定員", null=True, blank=True)
+    is_active = models.BooleanField("利用可", default=True)
+
+    class Meta:
+        verbose_name = "会議室"
+        verbose_name_plural = "会議室"
+        ordering = ["name"]
+
+    def __str__(self) -> str:
+        return self.name
+
+
+class RoomReservation(models.Model):
+    """会議室の予約。同じ会議室で時間が重なる予約は登録できない。"""
+
+    room = models.ForeignKey(
+        MeetingRoom,
+        on_delete=models.CASCADE,
+        related_name="reservations",
+        verbose_name="会議室",
+    )
+    user = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.CASCADE,
+        related_name="room_reservations",
+        verbose_name="予約者",
+    )
+    purpose = models.CharField("用件", max_length=100)
+    start_at = models.DateTimeField("開始日時")
+    end_at = models.DateTimeField("終了日時")
+    created_at = models.DateTimeField("登録日時", auto_now_add=True)
+
+    class Meta:
+        verbose_name = "会議室の予約"
+        verbose_name_plural = "会議室の予約"
+        ordering = ["start_at", "id"]
+        indexes = [models.Index(fields=["room", "start_at"])]
+
+    def __str__(self) -> str:
+        return f"{self.room.name} {timezone.localtime(self.start_at):%Y-%m-%d %H:%M} {self.purpose}"
+
+    @property
+    def is_ongoing(self) -> bool:
+        """いま使用中か。"""
+        return self.start_at <= timezone.now() < self.end_at
+
+    def overlapping(self):
+        """同じ会議室で時間が重なる、自分以外の予約。
+
+        (開始 < 相手の終了) かつ (終了 > 相手の開始) で重なりを判定する。
+        終了時刻と次の開始時刻が同じ場合は重ならない扱いにする。
+        """
+        qs = RoomReservation.objects.filter(
+            room=self.room, start_at__lt=self.end_at, end_at__gt=self.start_at
+        )
+        return qs.exclude(pk=self.pk) if self.pk else qs
+
+    def clean(self) -> None:
+        super().clean()
+        if self.start_at and self.end_at and self.end_at <= self.start_at:
+            raise ValidationError({"end_at": "終了日時は開始日時より後にしてください。"})
+        if self.room_id and self.start_at and self.end_at:
+            taken = self.overlapping().select_related("user").first()
+            if taken is not None:
+                raise ValidationError(
+                    "この時間帯はすでに予約されています"
+                    f"（{timezone.localtime(taken.start_at):%H:%M}〜"
+                    f"{timezone.localtime(taken.end_at):%H:%M} {taken.user.name}）。"
+                )
+
+    def is_cancellable_by(self, user) -> bool:
+        """取り消せるか。予約した本人と、管理権限を持つ人（教員・開発者）。"""
+        return self.user_id == user.pk or user.is_staff
 
 
 class MenuCategory(models.TextChoices):

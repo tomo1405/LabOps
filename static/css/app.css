@@ -362,3 +362,8 @@
 .menu-history-body {
   min-width: 0;
 }
+
+/* 会議室予約 */
+.reservation-body {
+  min-width: 0;
+}

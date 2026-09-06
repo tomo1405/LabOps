@@ -12,23 +12,26 @@ from django.contrib import messages
 from django.contrib.auth import get_user_model
 from django.contrib.auth.decorators import login_required
 from django.db.models import Q
-from django.http import HttpRequest, HttpResponse
+from django.http import Http404, HttpRequest, HttpResponse
 from django.shortcuts import get_object_or_404, redirect, render
+from django.urls import reverse
 from django.utils import timezone
 from django.views.decorators.http import require_GET, require_POST
 
 from .attendance import NFC_COOLDOWN_SECONDS, toggle_attendance, toggle_attendance_by_tag
 from .attendance_summary import build_daily_stays
 from .canteen import save_menu
-from .forms import CanteenMenuForm, NewsPostForm
+from .forms import CanteenMenuForm, NewsPostForm, RoomReservationForm
 from .models import (
     AttendanceLog,
     AttendanceSource,
     AttendanceStatus,
     CanteenMenu,
+    MeetingRoom,
     NewsPost,
     NewsStatus,
     NfcTag,
+    RoomReservation,
 )
 
 User = get_user_model()
@@ -81,11 +84,78 @@ def _attendance_context(user) -> dict:
     }
 
 
+def _reservation_context(request: HttpRequest, day: date, form=None) -> dict:
+    """会議室予約の表示に必要なデータをまとめる。"""
+    reservations = (
+        RoomReservation.objects.filter(
+            start_at__gte=_as_local_start_of_day(day),
+            start_at__lt=_as_local_start_of_day(day + timedelta(days=1)),
+        )
+        .select_related("room", "user")
+        .order_by("room__name", "start_at")
+    )
+    return {
+        "reservation_day": day,
+        "reservations": reservations,
+        "rooms": MeetingRoom.objects.filter(is_active=True),
+        "reservation_form": form if form is not None else RoomReservationForm(),
+        "reservation_prev": (day - timedelta(days=1)).isoformat(),
+        "reservation_next": (day + timedelta(days=1)).isoformat(),
+        "reservation_today": timezone.localdate().isoformat(),
+    }
+
+
 @login_required
 @require_GET
 def attendance_list(request: HttpRequest) -> HttpResponse:
-    """GET /attendance/ : 在室メンバー一覧。"""
-    return render(request, "community/attendance_list.html", _attendance_context(request.user))
+    """GET /attendance/ : 在室メンバー一覧と、その日の会議室予約。"""
+    day = _parse_date(request.GET.get("date"), timezone.localdate())
+    context = _attendance_context(request.user)
+    context.update(_reservation_context(request, day))
+    return render(request, "community/attendance_list.html", context)
+
+
+@login_required
+@require_POST
+def reservation_create(request: HttpRequest) -> HttpResponse:
+    """POST /rooms/reservations : 会議室の予約。"""
+    form = RoomReservationForm(request.POST)
+    if form.is_valid():
+        reservation = form.save(commit=False)
+        reservation.user = request.user
+        reservation.full_clean()
+        reservation.save()
+        start = timezone.localtime(reservation.start_at)
+        messages.success(
+            request,
+            f"{reservation.room.name} を予約しました"
+            f"（{start.month}月{start.day}日 {start:%H:%M}〜"
+            f"{timezone.localtime(reservation.end_at):%H:%M}）。",
+        )
+        target = timezone.localtime(reservation.start_at).date()
+        return redirect(f"{reverse('community:attendance_list')}?date={target.isoformat()}")
+
+    day = _parse_date(request.POST.get("date"), timezone.localdate())
+    context = _attendance_context(request.user)
+    context.update(_reservation_context(request, day, form))
+    return render(request, "community/attendance_list.html", context, status=400)
+
+
+@login_required
+@require_POST
+def reservation_delete(request: HttpRequest, pk: int) -> HttpResponse:
+    """POST /rooms/reservations/<id>/delete : 予約の取り消し。
+
+    取り消せるのは予約した本人と、管理権限を持つ人。
+    """
+    reservation = get_object_or_404(RoomReservation.objects.select_related("room"), pk=pk)
+    if not reservation.is_cancellable_by(request.user):
+        raise Http404("この予約は取り消せません。")
+
+    day = timezone.localtime(reservation.start_at).date()
+    reservation.delete()
+    messages.success(request, "予約を取り消しました。")
+    return redirect(f"{reverse('community:attendance_list')}?date={day.isoformat()}")
 
 
 @login_required

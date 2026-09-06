@@ -11,6 +11,13 @@ urlpatterns = [
     path("attendance/", views.attendance_list, name="attendance_list"),
     path("attendance/toggle", views.attendance_toggle, name="attendance_toggle"),
     path("attendance/history", views.attendance_history, name="attendance_history"),
+    # 会議室予約（在室ページに組み込む）
+    path("rooms/reservations", views.reservation_create, name="reservation_create"),
+    path(
+        "rooms/reservations/<int:pk>/delete",
+        views.reservation_delete,
+        name="reservation_delete",
+    ),
     # NFCタグに書き込むURL。タグ側は場所を表し、誰が打刻したかはログイン情報で判定する
     path("attendance/nfc/<str:token>", views.attendance_nfc, name="attendance_nfc"),
     # 学食メニュー共有

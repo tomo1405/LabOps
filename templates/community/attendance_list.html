@@ -7,6 +7,8 @@
 
 {% block content %}
 {% include "community/partials/attendance_board.html" %}
+
+{% include "community/partials/room_reservations.html" %}
 <p class="text-secondary small mt-3 mb-0">
   状態は自分で切り替えます。自分用のNFCタグを読むと、ログインなしで在室と不在が入れ替わります（センサーによる自動判定はありません）。
   過去の記録は<a href="{% url 'community:attendance_history' %}">入退室履歴</a>で確認できます。

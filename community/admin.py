@@ -5,8 +5,10 @@ from .models import (
     AttendanceStatus,
     CanteenMenu,
     CanteenMenuItem,
+    MeetingRoom,
     NewsPost,
     NfcTag,
+    RoomReservation,
 )
 
 
@@ -83,3 +85,17 @@ class NewsPostAdmin(admin.ModelAdmin):
     list_display = ("title", "author", "status", "published_at")
     list_filter = ("status", "author")
     search_fields = ("title", "body")
+
+
+@admin.register(MeetingRoom)
+class MeetingRoomAdmin(admin.ModelAdmin):
+    list_display = ("name", "location", "capacity", "is_active")
+    list_filter = ("is_active",)
+
+
+@admin.register(RoomReservation)
+class RoomReservationAdmin(admin.ModelAdmin):
+    list_display = ("room", "start_at", "end_at", "purpose", "user")
+    list_filter = ("room", "user")
+    date_hierarchy = "start_at"
+    search_fields = ("purpose",)

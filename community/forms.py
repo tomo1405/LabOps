@@ -3,7 +3,13 @@
 from django import forms
 from django.utils import timezone
 
-from .models import CanteenMenu, CanteenMenuItem, NewsPost
+from .models import (
+    CanteenMenu,
+    CanteenMenuItem,
+    MeetingRoom,
+    NewsPost,
+    RoomReservation,
+)
 
 
 class CanteenMenuForm(forms.ModelForm):
@@ -120,3 +126,24 @@ class NewsPostForm(forms.ModelForm):
             "title": forms.TextInput(attrs={"class": "form-control"}),
             "body": forms.Textarea(attrs={"class": "form-control", "rows": 10}),
         }
+
+
+class RoomReservationForm(forms.ModelForm):
+    """会議室の予約フォーム。重なりの判定はモデルの clean() で行う。"""
+
+    class Meta:
+        model = RoomReservation
+        fields = ["room", "purpose", "start_at", "end_at"]
+        widgets = {
+            "room": forms.Select(attrs={"class": "form-select"}),
+            "purpose": forms.TextInput(
+                attrs={"class": "form-control", "placeholder": "例: 研究ミーティング"}
+            ),
+            "start_at": forms.DateTimeInput(attrs={"type": "datetime-local", "class": "form-control"}),
+            "end_at": forms.DateTimeInput(attrs={"type": "datetime-local", "class": "form-control"}),
+        }
+
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        self.fields["room"].queryset = MeetingRoom.objects.filter(is_active=True)
+        self.fields["room"].empty_label = None

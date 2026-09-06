@@ -1,0 +1,87 @@
+{# 会議室予約（在室ページに組み込む） #}
+<div class="card mt-4">
+  <div class="card-header d-flex flex-wrap justify-content-between align-items-center gap-2">
+    <span>会議室の予約（{{ reservation_day|date:"n月j日 (D)" }}）</span>
+    <div class="btn-group btn-group-sm" role="group" aria-label="日付の移動">
+      <a class="btn btn-outline-secondary"
+         href="{% url 'community:attendance_list' %}?date={{ reservation_prev }}">前日</a>
+      <a class="btn btn-outline-secondary"
+         href="{% url 'community:attendance_list' %}?date={{ reservation_today }}">今日</a>
+      <a class="btn btn-outline-secondary"
+         href="{% url 'community:attendance_list' %}?date={{ reservation_next }}">翌日</a>
+    </div>
+  </div>
+
+  {% if rooms %}
+    <ul class="list-group list-group-flush">
+      {% for reservation in reservations %}
+        <li class="list-group-item d-flex justify-content-between align-items-start gap-2">
+          <span class="reservation-body">
+            <span class="fw-semibold">
+              {{ reservation.start_at|date:"H:i" }}〜{{ reservation.end_at|date:"H:i" }}
+            </span>
+            <span class="badge text-bg-light">{{ reservation.room.name }}</span>
+            {% if reservation.is_ongoing %}<span class="badge text-bg-success">使用中</span>{% endif %}
+            <div class="text-secondary small">
+              {{ reservation.purpose }}／{{ reservation.user.name }}
+            </div>
+          </span>
+          {% if reservation.user_id == user.pk or user.is_staff %}
+            <form method="post"
+                  action="{% url 'community:reservation_delete' reservation.pk %}"
+                  class="flex-shrink-0">
+              {% csrf_token %}
+              <button type="submit" class="btn btn-sm btn-link text-danger py-0">取り消す</button>
+            </form>
+          {% endif %}
+        </li>
+      {% empty %}
+        <li class="list-group-item text-secondary">この日の予約はありません。</li>
+      {% endfor %}
+    </ul>
+
+    <div class="card-footer">
+      <form method="post" action="{% url 'community:reservation_create' %}" class="row g-2">
+        {% csrf_token %}
+        <input type="hidden" name="date" value="{{ reservation_day|date:'Y-m-d' }}">
+        {% if reservation_form.non_field_errors %}
+          <div class="col-12">
+            <div class="alert alert-danger py-2 mb-0">{{ reservation_form.non_field_errors }}</div>
+          </div>
+        {% endif %}
+        <div class="col-sm-3">
+          <label class="form-label small mb-1" for="{{ reservation_form.room.id_for_label }}">会議室</label>
+          {{ reservation_form.room }}
+          {% for error in reservation_form.room.errors %}<div class="text-danger small">{{ error }}</div>{% endfor %}
+        </div>
+        <div class="col-sm-4">
+          <label class="form-label small mb-1" for="{{ reservation_form.purpose.id_for_label }}">用件</label>
+          {{ reservation_form.purpose }}
+          {% for error in reservation_form.purpose.errors %}<div class="text-danger small">{{ error }}</div>{% endfor %}
+        </div>
+        <div class="col-sm-5 row g-2 mx-0 px-0">
+          <div class="col-6 ps-0">
+            <label class="form-label small mb-1" for="{{ reservation_form.start_at.id_for_label }}">開始</label>
+            {{ reservation_form.start_at }}
+            {% for error in reservation_form.start_at.errors %}<div class="text-danger small">{{ error }}</div>{% endfor %}
+          </div>
+          <div class="col-6 pe-0">
+            <label class="form-label small mb-1" for="{{ reservation_form.end_at.id_for_label }}">終了</label>
+            {{ reservation_form.end_at }}
+            {% for error in reservation_form.end_at.errors %}<div class="text-danger small">{{ error }}</div>{% endfor %}
+          </div>
+        </div>
+        <div class="col-12">
+          <button type="submit" class="btn btn-primary">予約する</button>
+          <span class="text-secondary small ms-2">
+            同じ会議室で時間が重なる予約はできません。取り消せるのは予約した本人と管理者です。
+          </span>
+        </div>
+      </form>
+    </div>
+  {% else %}
+    <div class="card-body text-secondary">
+      会議室が登録されていません。管理画面の「会議室」から登録してください。
+    </div>
+  {% endif %}
+</div>
