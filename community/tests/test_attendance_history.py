@@ -164,54 +164,116 @@ class DailyStayTests(TestCase):
 
 
 class AttendanceNfcTests(TestCase):
+    """メンバーごとのNFCタグ。URLを開くと、ログインなしで在室／不在が反転する。"""
+
     @classmethod
     def setUpTestData(cls):
         cls.user = User.objects.create_user(email="me@example.com", password="pw12345!", name="本人")
-        cls.tag = NfcTag.objects.create(label="入り口", location="研究室ドア横")
+        cls.other = User.objects.create_user(email="other@example.com", password="pw12345!", name="他人")
+        cls.tag = NfcTag.objects.create(user=cls.user, label="入り口用", location="研究室ドア横")
 
     def setUp(self):
-        self.client.force_login(self.user)
         self.url = reverse("community:attendance_nfc", args=[self.tag.token])
 
-    def test_get_shows_confirmation_without_changing_state(self):
-        """タグを読んだだけでは打刻しない（先読みでの誤打刻を避ける）。"""
+    def _age_last_log(self, seconds: int = 120) -> None:
+        """直前の打刻を過去にずらし、連続読み取り扱いを解除する。"""
+        log = AttendanceLog.objects.order_by("-id").first()
+        AttendanceLog.objects.filter(pk=log.pk).update(
+            recorded_at=timezone.now() - timedelta(seconds=seconds)
+        )
+
+    def test_opening_url_marks_the_member_present(self):
         response = self.client.get(self.url)
         self.assertEqual(response.status_code, 200)
-        self.assertContains(response, "入り口")
-        self.assertFalse(AttendanceLog.objects.exists())
+        self.assertTrue(AttendanceStatus.objects.get(user=self.user).is_present)
 
-    def test_post_enter_records_with_nfc_source(self):
-        response = self.client.post(self.url, {"action": "enter"})
-        self.assertRedirects(response, reverse("community:attendance_list"))
+    def test_opening_url_again_marks_the_member_absent(self):
+        """もう一度読むと反転して退室になる。"""
+        self.client.get(self.url)
+        self._age_last_log()
+        self.client.get(self.url)
+        self.assertFalse(AttendanceStatus.objects.get(user=self.user).is_present)
+
+    def test_works_without_login(self):
+        """ログインしていなくても打刻できる（ログイン画面へ飛ばさない）。"""
+        response = self.client.get(self.url)
+        self.assertEqual(response.status_code, 200)
+        self.assertNotIn(reverse("accounts:login"), response.get("Location", ""))
+
+    def test_records_log_with_nfc_source_and_tag(self):
+        self.client.get(self.url)
         log = AttendanceLog.objects.get()
+        self.assertEqual(log.user, self.user)
         self.assertEqual(log.action, AttendanceAction.ENTER)
         self.assertEqual(log.source, AttendanceSource.NFC)
         self.assertEqual(log.tag, self.tag)
-        self.assertTrue(AttendanceStatus.objects.get(user=self.user).is_present)
 
-    def test_post_exit_records_exit(self):
-        self.client.post(self.url, {"action": "enter"})
-        self.client.post(self.url, {"action": "exit"})
-        self.assertFalse(AttendanceStatus.objects.get(user=self.user).is_present)
+    def test_tag_only_affects_its_own_member(self):
+        """他メンバーの在室状態は変わらない。"""
+        AttendanceStatus.objects.create(user=self.other, status=AttendanceState.ABSENT)
+        self.client.get(self.url)
+        self.assertFalse(AttendanceStatus.objects.get(user=self.other).is_present)
+
+    def test_consecutive_reads_do_not_toggle_twice(self):
+        """かざし直しや先読みで、入室直後に退室扱いにならない。"""
+        self.client.get(self.url)
+        response = self.client.get(self.url)
+        self.assertTrue(AttendanceStatus.objects.get(user=self.user).is_present)
+        self.assertEqual(AttendanceLog.objects.count(), 1)
+        self.assertFalse(response.context["toggled"])
+
+    def test_toggle_resumes_after_cooldown(self):
+        self.client.get(self.url)
+        self._age_last_log()
+        response = self.client.get(self.url)
+        self.assertTrue(response.context["toggled"])
         self.assertEqual(AttendanceLog.objects.count(), 2)
+
+    def test_result_page_shows_member_and_state(self):
+        response = self.client.get(self.url)
+        self.assertContains(response, "本人")
+        self.assertContains(response, "在室")
+
+    def test_response_is_not_cached(self):
+        response = self.client.get(self.url)
+        self.assertEqual(response["Cache-Control"], "no-store")
 
     def test_unknown_token_returns_404(self):
         response = self.client.get(reverse("community:attendance_nfc", args=["unknown-token"]))
         self.assertEqual(response.status_code, 404)
+        self.assertFalse(AttendanceLog.objects.exists())
 
     def test_inactive_tag_returns_404(self):
         self.tag.is_active = False
         self.tag.save(update_fields=["is_active"])
         self.assertEqual(self.client.get(self.url).status_code, 404)
+        self.assertFalse(AttendanceLog.objects.exists())
 
-    def test_requires_login(self):
-        self.client.logout()
-        response = self.client.get(self.url)
-        self.assertRedirects(response, f"{reverse('accounts:login')}?next={self.url}")
+    def test_regenerated_token_invalidates_the_old_url(self):
+        """紛失したタグは、トークン再発行で使えなくなる。"""
+        old_url = self.url
+        self.tag.regenerate_token()
+        self.assertEqual(self.client.get(old_url).status_code, 404)
+        new_url = reverse("community:attendance_nfc", args=[self.tag.token])
+        self.assertEqual(self.client.get(new_url).status_code, 200)
+
+    def test_post_is_rejected(self):
+        response = self.client.post(self.url)
+        self.assertEqual(response.status_code, 405)
 
     def test_tokens_are_unique_per_tag(self):
-        other = NfcTag.objects.create(label="別の入り口")
-        self.assertNotEqual(self.tag.token, other.token)
+        other_tag = NfcTag.objects.create(user=self.other)
+        self.assertNotEqual(self.tag.token, other_tag.token)
+
+    def test_member_can_have_multiple_tags(self):
+        spare = NfcTag.objects.create(user=self.user, label="予備")
+        self.client.get(reverse("community:attendance_nfc", args=[spare.token]))
+        self.assertTrue(AttendanceStatus.objects.get(user=self.user).is_present)
 
     def test_url_path_points_to_the_tag(self):
         self.assertEqual(self.tag.url_path, self.url)
+
+    def test_deleting_member_removes_their_tags(self):
+        tag_pk = self.tag.pk
+        self.user.delete()
+        self.assertFalse(NfcTag.objects.filter(pk=tag_pk).exists())

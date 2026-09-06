@@ -35,6 +35,8 @@ User = get_user_model()
 CANTEEN_HISTORY_LIMIT = 7
 ATTENDANCE_HISTORY_DAYS = 7
 ATTENDANCE_LOG_LIMIT = 300
+# 同じタグを続けて読んだときに二重打刻しない時間（秒）
+NFC_COOLDOWN_SECONDS = 30
 
 
 def _parse_date(raw: str | None, default: date) -> date:
@@ -131,31 +133,41 @@ def attendance_history(request: HttpRequest) -> HttpResponse:
     )
 
 
-@login_required
+@require_GET
 def attendance_nfc(request: HttpRequest, token: str) -> HttpResponse:
-    """GET/POST /attendance/nfc/<token> : NFCタグからの入退室登録。
+    """GET /attendance/nfc/<token> : NFCタグからの入退室登録（ログイン不要）。
 
-    タグを読むと GET でこの画面が開く。GETでは状態を変えず、
-    表示された「入室」「退室」を押した POST で記録する
-    （ブラウザの先読みなどで意図せず打刻されるのを避けるため）。
+    タグはメンバーごとに発行し、URLを開くとそのメンバーの在室／不在が反転する。
+    URLを知っていれば誰でも打刻できるため、トークンは推測できない値とし、
+    紛失時は管理画面から無効化・再発行する。
+
+    短時間に同じタグが複数回読まれた場合は反転させない。
+    かざし直しやブラウザの先読みで、入室直後に退室扱いになるのを防ぐため。
     """
-    tag = get_object_or_404(NfcTag, token=token, is_active=True)
-    status, _ = AttendanceStatus.objects.get_or_create(user=request.user)
+    tag = get_object_or_404(NfcTag.objects.select_related("user"), token=token, is_active=True)
+    status, _ = AttendanceStatus.objects.get_or_create(user=tag.user)
 
-    if request.method == "POST":
-        entering = request.POST.get("action") == "enter"
-        status.set_state(entering, source=AttendanceSource.NFC, tag=tag)
-        messages.success(
-            request,
-            f"{tag.label} で{'入室' if entering else '退室'}を記録しました。",
-        )
-        return redirect("community:attendance_list")
+    recent = AttendanceLog.objects.filter(
+        user=tag.user,
+        source=AttendanceSource.NFC,
+        recorded_at__gte=timezone.now() - timedelta(seconds=NFC_COOLDOWN_SECONDS),
+    ).exists()
 
-    return render(
+    if recent:
+        toggled = False
+    else:
+        status.toggle(source=AttendanceSource.NFC, tag=tag)
+        toggled = True
+
+    response = render(
         request,
         "community/attendance_nfc.html",
-        {"tag": tag, "status": status},
+        {"tag": tag, "status": status, "toggled": toggled, "cooldown": NFC_COOLDOWN_SECONDS},
     )
+    # 打刻結果をキャッシュさせない（戻る操作や共有端末で古い結果を見せないため）
+    response["Cache-Control"] = "no-store"
+    response["X-Robots-Tag"] = "noindex, nofollow"
+    return response
 
 
 # --- 学食メニュー共有 -----------------------------------------------------

@@ -5,36 +5,43 @@
 {% block content %}
 <div class="row justify-content-center">
   <div class="col-md-6">
-    <div class="card">
-      <div class="card-header">
-        {{ tag.label }}{% if tag.location %}<span class="text-secondary small ms-2">{{ tag.location }}</span>{% endif %}
-      </div>
-      <div class="card-body">
-        <p class="mb-2">
-          {{ user.name }} さんの現在の状態：
-          <span class="fw-semibold">{% if status.is_present %}在室{% else %}不在{% endif %}</span>
+    <div class="card {% if status.is_present %}border-success{% else %}border-secondary{% endif %}">
+      <div class="card-body text-center py-4">
+        <p class="text-secondary mb-1">{{ tag.user.name }} さん</p>
+        <p class="display-6 mb-2">
+          {% if status.is_present %}
+            <span class="text-success">在室</span>
+          {% else %}
+            <span class="text-secondary">不在</span>
+          {% endif %}
         </p>
-        <form method="post">
-          {% csrf_token %}
-          <div class="d-grid gap-2">
-            {% if status.is_present %}
-              <button type="submit" name="action" value="exit" class="btn btn-lg btn-primary">退室を記録</button>
-              <button type="submit" name="action" value="enter" class="btn btn-outline-secondary">入室として記録する</button>
-            {% else %}
-              <button type="submit" name="action" value="enter" class="btn btn-lg btn-success">入室を記録</button>
-              <button type="submit" name="action" value="exit" class="btn btn-outline-secondary">退室として記録する</button>
-            {% endif %}
-          </div>
-        </form>
+        {% if toggled %}
+          <p class="mb-0">
+            {% if status.is_present %}入室{% else %}退室{% endif %}を記録しました
+            （{{ status.updated_at|date:"n月j日 H:i" }}）
+          </p>
+        {% else %}
+          <p class="mb-0 text-secondary">
+            直前に記録済みのため、状態は変えていません（{{ cooldown }}秒以内の連続読み取り）。
+          </p>
+        {% endif %}
       </div>
-      <div class="card-footer text-secondary small">
-        現在の状態から判断して、押しやすい方を大きく表示しています。
-        間違えたときは、もう一方のボタンで上書きできます。
-      </div>
+      {% if tag.location %}
+        <div class="card-footer text-secondary small text-center">{{ tag.location }}</div>
+      {% endif %}
     </div>
+
     <p class="text-secondary small mt-3 mb-0">
-      記録されるのはログイン中のアカウントです。共用端末では、自分のアカウントか確認してください。
+      このタグを読むたびに、在室と不在が入れ替わります。
+      間違って記録されたときは、もう一度読むか、ログインして在室メンバー画面から切り替えてください。
     </p>
+    {% if user.is_authenticated %}
+      <p class="mt-3 mb-0">
+        <a href="{% url 'community:attendance_list' %}">在室メンバーへ</a>
+        ／
+        <a href="{% url 'community:attendance_history' %}">入退室履歴へ</a>
+      </p>
+    {% endif %}
   </div>
 </div>
 {% endblock %}

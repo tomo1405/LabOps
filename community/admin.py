@@ -11,13 +11,43 @@ class AttendanceStatusAdmin(admin.ModelAdmin):
 
 @admin.register(NfcTag)
 class NfcTagAdmin(admin.ModelAdmin):
-    list_display = ("label", "location", "is_active", "url_path", "created_at")
-    list_filter = ("is_active",)
+    """NFCタグの発行。URLがそのまま打刻の鍵になるため、発行は管理者のみが行う。"""
+
+    list_display = ("user", "label", "location", "is_active", "url_path", "created_at")
+    list_filter = ("is_active", "user")
+    search_fields = ("user__name", "user__email", "label", "location")
+    autocomplete_fields = ()
     readonly_fields = ("token", "url_path", "created_at")
+    actions = ("regenerate_tokens", "deactivate_tags")
+    fieldsets = (
+        (None, {"fields": ("user", "label", "location", "is_active")}),
+        (
+            "タグに書き込むURL",
+            {
+                "fields": ("url_path", "token", "created_at"),
+                "description": (
+                    "このURLを開くと、対象メンバーの在室／不在がログインなしで反転します。"
+                    "URLを知っていれば誰でも打刻できるため、配布先に注意してください。"
+                    "紛失した場合は「トークンを再発行する」で古いURLを無効にできます。"
+                ),
+            },
+        ),
+    )
 
     @admin.display(description="タグに書き込むURL")
     def url_path(self, obj) -> str:
         return obj.url_path
+
+    @admin.action(description="トークンを再発行する（古いURLは使えなくなります）")
+    def regenerate_tokens(self, request, queryset):
+        for tag in queryset:
+            tag.regenerate_token()
+        self.message_user(request, f"{queryset.count()} 件のトークンを再発行しました。")
+
+    @admin.action(description="無効にする")
+    def deactivate_tags(self, request, queryset):
+        updated = queryset.update(is_active=False)
+        self.message_user(request, f"{updated} 件を無効にしました。")
 
 
 @admin.register(AttendanceLog)

@@ -74,13 +74,21 @@ def generate_nfc_token() -> str:
 
 
 class NfcTag(models.Model):
-    """入退室登録に使うNFCタグ（研究室の入り口などに貼る）。
+    """入退室登録に使うNFCタグ。メンバー1人につき1枚以上を発行する。
 
-    タグにはこのレコードのURLを書き込む。誰が打刻したかはログイン情報で判定するため、
-    タグ自体は「どこで打刻したか」を表す。
+    タグにはこのレコードのURLを書き込む。URLを開くとログインなしでそのメンバーの
+    在室／不在が反転するため、**URLそのものが打刻用の鍵**になる。
+    紛失・流出したタグは、管理画面から無効化するかトークンを再発行する。
     """
 
-    label = models.CharField("名称", max_length=50, help_text="例: 入り口（右扉）")
+    user = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.CASCADE,
+        related_name="nfc_tags",
+        verbose_name="対象メンバー",
+        help_text="このタグを読んだときに入退室が切り替わるメンバー",
+    )
+    label = models.CharField("名称", max_length=50, blank=True, help_text="例: 入り口に貼るタグ（予備）")
     location = models.CharField("設置場所", max_length=100, blank=True)
     token = models.CharField(
         "トークン", max_length=64, unique=True, default=generate_nfc_token, editable=False
@@ -91,10 +99,10 @@ class NfcTag(models.Model):
     class Meta:
         verbose_name = "NFCタグ"
         verbose_name_plural = "NFCタグ"
-        ordering = ["label"]
+        ordering = ["user__name", "label"]
 
     def __str__(self) -> str:
-        return self.label
+        return f"{self.user.name}{f'（{self.label}）' if self.label else ''}"
 
     @property
     def url_path(self) -> str:
@@ -102,6 +110,12 @@ class NfcTag(models.Model):
         from django.urls import reverse
 
         return reverse("community:attendance_nfc", args=[self.token])
+
+    def regenerate_token(self) -> str:
+        """トークンを作り直す。紛失したタグを無効にするときに使う。"""
+        self.token = generate_nfc_token()
+        self.save(update_fields=["token"])
+        return self.token
 
 
 class AttendanceLog(models.Model):
