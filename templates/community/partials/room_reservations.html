@@ -20,7 +20,7 @@
             <span class="fw-semibold">
               {{ reservation.start_at|date:"H:i" }}〜{{ reservation.end_at|date:"H:i" }}
             </span>
-            <span class="badge text-bg-light">{{ reservation.room.name }}</span>
+            <span class="badge text-bg-light">{{ reservation.room.label }}</span>
             {% if reservation.is_ongoing %}<span class="badge text-bg-success">使用中</span>{% endif %}
             <div class="text-secondary small">
               {{ reservation.purpose }}／{{ reservation.user.name }}

@@ -167,8 +167,8 @@ class MenuSource(models.TextChoices):
 class MeetingRoom(models.Model):
     """研究室の会議室。管理サイトから登録する。"""
 
-    name = models.CharField("名称", max_length=50, help_text="例: 会議室A")
-    location = models.CharField("場所", max_length=100, blank=True)
+    name = models.CharField("名称", max_length=50, help_text="例: 全体ミーティングルーム")
+    location = models.CharField("場所", max_length=100, blank=True, help_text="例: B307")
     capacity = models.PositiveIntegerField("定員", null=True, blank=True)
     is_active = models.BooleanField("利用可", default=True)
 
@@ -178,7 +178,12 @@ class MeetingRoom(models.Model):
         ordering = ["name"]
 
     def __str__(self) -> str:
-        return self.name
+        return self.label
+
+    @property
+    def label(self) -> str:
+        """画面に出す名前。似た名称を見分けられるよう部屋番号を添える。"""
+        return f"{self.name}（{self.location}）" if self.location else self.name
 
 
 class RoomReservation(models.Model):

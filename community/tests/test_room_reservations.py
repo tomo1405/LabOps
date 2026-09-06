@@ -16,6 +16,39 @@ def at(day, hour: int, minute: int = 0):
     return timezone.make_aware(datetime.combine(day, time(hour=hour, minute=minute)))
 
 
+class InitialMeetingRoomTests(TestCase):
+    """研究室の会議室は初期データとして登録済み（マイグレーションで投入）。"""
+
+    def test_four_rooms_are_registered(self):
+        rooms = {r.name: r.location for r in MeetingRoom.objects.all()}
+        self.assertEqual(
+            rooms,
+            {
+                "全体ミーティングルーム": "B307",
+                "ミーティングルーム": "B303",
+                "サーバルーム": "B304",
+                "ゲームルーム": "B305",
+            },
+        )
+
+    def test_label_includes_the_room_number(self):
+        """似た名称を見分けられるよう、表示名に部屋番号を添える。"""
+        room = MeetingRoom.objects.get(name="ミーティングルーム")
+        self.assertEqual(room.label, "ミーティングルーム（B303）")
+        self.assertEqual(str(room), "ミーティングルーム（B303）")
+
+    def test_label_falls_back_to_the_name(self):
+        room = MeetingRoom.objects.create(name="臨時スペース")
+        self.assertEqual(room.label, "臨時スペース")
+
+    def test_rooms_appear_in_the_reservation_form(self):
+        user = User.objects.create_user(email="me@example.com", password="pw12345!", name="本人")
+        self.client.force_login(user)
+        response = self.client.get(reverse("community:attendance_list"))
+        self.assertContains(response, "全体ミーティングルーム（B307）")
+        self.assertContains(response, "サーバルーム（B304）")
+
+
 class RoomReservationTests(TestCase):
     @classmethod
     def setUpTestData(cls):
@@ -24,6 +57,8 @@ class RoomReservationTests(TestCase):
         cls.staff = User.objects.create_user(
             email="staff@example.com", password="pw12345!", name="管理者", is_staff=True
         )
+        # 初期データの部屋とは別に、テスト用の部屋を用意する
+        MeetingRoom.objects.all().delete()
         cls.room = MeetingRoom.objects.create(name="会議室A", location="3階")
         cls.other_room = MeetingRoom.objects.create(name="会議室B")
 
