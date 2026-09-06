@@ -163,11 +163,22 @@ class MenuSource(models.TextChoices):
     SCRAPED = "scraped", "自動取得"
 
 
+class MenuCategory(models.TextChoices):
+    SET_MEAL = "set_meal", "定食"
+    DONBURI = "donburi", "アラカルト丼"
+
+
 class CanteenMenu(models.Model):
-    """学食メニュー（詳細設計書 2.9 CanteenMenu）。"""
+    """学食メニュー（詳細設計書 2.9 CanteenMenu）。
+
+    献立は CanteenMenuItem に品目ごとで持ち、この行は日付単位のまとめ役になる。
+    menu_text は定食・丼に当てはまらない情報（麺コーナー、休業案内など）の補足欄。
+    """
 
     date = models.DateField("日付", unique=True)
-    menu_text = models.TextField("メニュー内容")
+    menu_text = models.TextField(
+        "補足", blank=True, help_text="定食・丼以外の情報（麺コーナー、臨時休業など）"
+    )
     source = models.CharField("取得元", max_length=10, choices=MenuSource.choices, default=MenuSource.MANUAL)
 
     class Meta:
@@ -177,6 +188,44 @@ class CanteenMenu(models.Model):
 
     def __str__(self) -> str:
         return f"{self.date} の学食メニュー"
+
+    def items_of(self, category: str) -> list["CanteenMenuItem"]:
+        """区分ごとの品目。プリフェッチ済みの場合もクエリを増やさない。"""
+        return [item for item in self.items.all() if item.category == category]
+
+    @property
+    def set_meals(self) -> list["CanteenMenuItem"]:
+        return self.items_of(MenuCategory.SET_MEAL)
+
+    @property
+    def donburi(self) -> list["CanteenMenuItem"]:
+        return self.items_of(MenuCategory.DONBURI)
+
+    @property
+    def is_empty(self) -> bool:
+        return not self.items.exists() and not self.menu_text
+
+
+class CanteenMenuItem(models.Model):
+    """学食メニューの品目。定食とアラカルト丼を区分して登録する。"""
+
+    menu = models.ForeignKey(
+        CanteenMenu,
+        on_delete=models.CASCADE,
+        related_name="items",
+        verbose_name="学食メニュー",
+    )
+    category = models.CharField("区分", max_length=10, choices=MenuCategory.choices)
+    name = models.CharField("品名", max_length=100)
+    position = models.PositiveIntegerField("並び順", default=0)
+
+    class Meta:
+        verbose_name = "学食メニューの品目"
+        verbose_name_plural = "学食メニューの品目"
+        ordering = ["category", "position", "id"]
+
+    def __str__(self) -> str:
+        return f"{self.get_category_display()}: {self.name}"
 
 
 class NewsStatus(models.TextChoices):

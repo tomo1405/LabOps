@@ -109,7 +109,7 @@
       </div>
       <div class="card-body">
         {% if today_menu %}
-          <div style="white-space: pre-wrap;">{{ today_menu.menu_text }}</div>
+          {% include "community/partials/menu_body.html" with menu=today_menu %}
         {% else %}
           <span class="text-secondary">まだ登録されていません。</span>
         {% endif %}

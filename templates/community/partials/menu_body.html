@@ -1,0 +1,29 @@
+{# 1日分の献立表示。定食とアラカルト丼を区分ごとに並べる #}
+{% if menu.set_meals %}
+  <div class="menu-group">
+    <div class="menu-group-title">定食</div>
+    <ul class="menu-items">
+      {% for item in menu.set_meals %}<li>{{ item.name }}</li>{% endfor %}
+    </ul>
+  </div>
+{% endif %}
+
+{% if menu.donburi %}
+  <div class="menu-group">
+    <div class="menu-group-title">アラカルト丼</div>
+    <ul class="menu-items">
+      {% for item in menu.donburi %}<li>{{ item.name }}</li>{% endfor %}
+    </ul>
+  </div>
+{% endif %}
+
+{% if menu.menu_text %}
+  <div class="menu-group">
+    <div class="menu-group-title">補足</div>
+    <div class="text-secondary" style="white-space: pre-wrap;">{{ menu.menu_text }}</div>
+  </div>
+{% endif %}
+
+{% if menu.is_empty %}
+  <span class="text-secondary">登録された品目がありません。</span>
+{% endif %}

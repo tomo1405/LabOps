@@ -25,6 +25,8 @@ from .models import (
     AttendanceSource,
     AttendanceStatus,
     CanteenMenu,
+    CanteenMenuItem,
+    MenuCategory,
     MenuSource,
     NewsPost,
     NewsStatus,
@@ -171,12 +173,28 @@ def attendance_nfc(request: HttpRequest, token: str) -> HttpResponse:
 
 def _canteen_context(form: CanteenMenuForm | None = None) -> dict:
     today = timezone.localdate()
+    menus = CanteenMenu.objects.prefetch_related("items")
     return {
         "today": today,
-        "today_menu": CanteenMenu.objects.filter(date=today).first(),
-        "recent_menus": CanteenMenu.objects.exclude(date=today)[:CANTEEN_HISTORY_LIMIT],
+        "today_menu": menus.filter(date=today).first(),
+        "recent_menus": menus.exclude(date=today)[:CANTEEN_HISTORY_LIMIT],
         "form": form if form is not None else CanteenMenuForm(),
     }
+
+
+def _save_menu_items(menu: CanteenMenu, form: CanteenMenuForm) -> None:
+    """入力された品目で登録済みの内容を置き換える。"""
+    menu.items.all().delete()
+    CanteenMenuItem.objects.bulk_create(
+        [
+            CanteenMenuItem(menu=menu, category=category, name=name, position=position)
+            for category, names in (
+                (MenuCategory.SET_MEAL, form.set_meal_names()),
+                (MenuCategory.DONBURI, form.donburi_names()),
+            )
+            for position, name in enumerate(names)
+        ]
+    )
 
 
 @login_required
@@ -199,6 +217,7 @@ def canteen_create(request: HttpRequest) -> HttpResponse:
             date=form.cleaned_data["date"],
             defaults={"menu_text": form.cleaned_data["menu_text"], "source": MenuSource.MANUAL},
         )
+        _save_menu_items(menu, form)
         messages.success(request, f"{menu.date} のメニューを{'登録' if created else '更新'}しました。")
         return redirect("community:canteen_today")
     return render(request, "community/canteen.html", _canteen_context(form), status=400)
@@ -221,6 +240,7 @@ def canteen_update(request: HttpRequest, pk: int) -> HttpResponse:
             menu.menu_text = form.cleaned_data["menu_text"]
             menu.source = MenuSource.MANUAL
             menu.save()
+            _save_menu_items(menu, form)
             messages.success(request, f"{menu.date} のメニューを更新しました。")
             return redirect("community:canteen_today")
     else:

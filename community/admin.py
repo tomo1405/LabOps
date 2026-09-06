@@ -1,6 +1,13 @@
 from django.contrib import admin
 
-from .models import AttendanceLog, AttendanceStatus, CanteenMenu, NewsPost, NfcTag
+from .models import (
+    AttendanceLog,
+    AttendanceStatus,
+    CanteenMenu,
+    CanteenMenuItem,
+    NewsPost,
+    NfcTag,
+)
 
 
 @admin.register(AttendanceStatus)
@@ -58,8 +65,14 @@ class AttendanceLogAdmin(admin.ModelAdmin):
     readonly_fields = ("recorded_at",)
 
 
+class CanteenMenuItemInline(admin.TabularInline):
+    model = CanteenMenuItem
+    extra = 1
+
+
 @admin.register(CanteenMenu)
 class CanteenMenuAdmin(admin.ModelAdmin):
+    inlines = [CanteenMenuItemInline]
     list_display = ("date", "source")
     list_filter = ("source",)
     date_hierarchy = "date"

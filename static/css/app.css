@@ -345,3 +345,20 @@
     height: 24px;
   }
 }
+
+/* 学食メニューの区分表示 */
+.menu-group + .menu-group {
+  margin-top: 0.6rem;
+}
+.menu-group-title {
+  font-size: 0.78rem;
+  font-weight: 600;
+  color: var(--bs-secondary-color, #6c757d);
+}
+.menu-items {
+  margin: 0.1rem 0 0;
+  padding-left: 1.1rem;
+}
+.menu-history-body {
+  min-width: 0;
+}

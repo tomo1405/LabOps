@@ -18,7 +18,7 @@
       <div class="card-header text-bg-danger">このメニューを削除しますか？</div>
       <div class="card-body">
         <div class="fw-semibold">{{ menu.date|date:"Y年n月j日 (D)" }}</div>
-        <div class="text-secondary" style="white-space: pre-wrap;">{{ menu.menu_text }}</div>
+        {% include "community/partials/menu_body.html" with menu=menu %}
       </div>
       <div class="card-footer">
         <form method="post">

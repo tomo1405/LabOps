@@ -16,6 +16,8 @@ from community.models import (
     AttendanceState,
     AttendanceStatus,
     CanteenMenu,
+    CanteenMenuItem,
+    MenuCategory,
     NewsPost,
     NewsStatus,
 )
@@ -43,7 +45,9 @@ DEMO_DIARIES = [
     (3, "前処理のバグを修正。データ件数が想定より少なかった原因が判明した。", "実装, デバッグ"),
 ]
 
-DEMO_CANTEEN = "A定食: からあげ定食\nB定食: 鯖の味噌煮\n麺: 天ぷらうどん"
+DEMO_SET_MEALS = ["からあげ定食", "鯖の味噌煮定食"]
+DEMO_DONBURI = ["親子丼", "ネギトロ丼"]
+DEMO_CANTEEN_NOTE = "麺コーナー: 天ぷらうどん"
 
 DEMO_NEWS = [
     ("ゼミ日程の変更について", "来週のゼミは水曜13時からに変更します。", True),
@@ -120,7 +124,20 @@ class Command(BaseCommand):
             AttendanceStatus.objects.get_or_create(user=users[email], defaults={"status": state})
 
     def _seed_canteen(self) -> None:
-        CanteenMenu.objects.get_or_create(date=timezone.localdate(), defaults={"menu_text": DEMO_CANTEEN})
+        menu, created = CanteenMenu.objects.get_or_create(
+            date=timezone.localdate(), defaults={"menu_text": DEMO_CANTEEN_NOTE}
+        )
+        if created:
+            CanteenMenuItem.objects.bulk_create(
+                [
+                    CanteenMenuItem(menu=menu, category=category, name=name, position=position)
+                    for category, names in (
+                        (MenuCategory.SET_MEAL, DEMO_SET_MEALS),
+                        (MenuCategory.DONBURI, DEMO_DONBURI),
+                    )
+                    for position, name in enumerate(names)
+                ]
+            )
 
     def _seed_news(self, author) -> None:
         for title, body, published in DEMO_NEWS:
