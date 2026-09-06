@@ -176,6 +176,13 @@ class RoomReservationTests(TestCase):
         self.assertContains(response, "会議室の予約 ")
         self.assertNotContains(response, "会議室の予約（")
 
+    def test_form_fields_are_laid_out_in_one_row(self):
+        """入れ子の row は上端がずれるため、4項目を同じ行の列として並べる。"""
+        response = self.client.get(reverse("community:attendance_list"))
+        html = response.content.decode()
+        self.assertEqual(html.count('class="col-lg-3 col-sm-6"'), 4)
+        self.assertNotIn('class="col-sm-5 row g-2 mx-0 px-0"', html)
+
     def test_attendance_page_lists_todays_reservations(self):
         self._existing(13, 14)
         response = self.client.get(reverse("community:attendance_list"))
