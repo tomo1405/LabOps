@@ -17,6 +17,7 @@ from django.shortcuts import get_object_or_404, redirect, render
 from django.utils import timezone
 from django.views.decorators.http import require_GET, require_POST
 
+from .attendance import NFC_COOLDOWN_SECONDS, toggle_attendance, toggle_attendance_by_tag
 from .attendance_summary import build_daily_stays
 from .forms import CanteenMenuForm, NewsPostForm
 from .models import (
@@ -35,18 +36,25 @@ User = get_user_model()
 CANTEEN_HISTORY_LIMIT = 7
 ATTENDANCE_HISTORY_DAYS = 7
 ATTENDANCE_LOG_LIMIT = 300
-# 同じタグを続けて読んだときに二重打刻しない時間（秒）
-NFC_COOLDOWN_SECONDS = 30
+# 履歴として扱う日付の範囲。
+# date 型の下限・上限に近い値は、翌日の加算やUTCへの変換でオーバーフローする。
+# 研究室の記録として意味のある範囲に収め、境界値のリクエストで500にしない。
+MIN_HISTORY_DATE = date(2000, 1, 1)
+MAX_HISTORY_DATE = date(2999, 12, 31)
 
 
 def _parse_date(raw: str | None, default: date) -> date:
-    """クエリの日付。未指定・不正な値は既定値にする（履歴画面は404にしない）。"""
+    """クエリの日付。未指定・不正な値は既定値にする（履歴画面は404にしない）。
+
+    形式は正しいが扱える範囲を外れた値（例: 9999-12-31）は、範囲の端に丸める。
+    """
     if not raw:
         return default
     try:
-        return date.fromisoformat(raw)
+        parsed = date.fromisoformat(raw)
     except ValueError:
         return default
+    return min(max(parsed, MIN_HISTORY_DATE), MAX_HISTORY_DATE)
 
 
 def _as_local_start_of_day(day: date) -> datetime:
@@ -87,8 +95,7 @@ def attendance_toggle(request: HttpRequest) -> HttpResponse:
 
     更新できるのは常にログインユーザー自身の状態に限る。
     """
-    status, _ = AttendanceStatus.objects.get_or_create(user=request.user)
-    status.toggle(source=AttendanceSource.WEB)
+    toggle_attendance(request.user, source=AttendanceSource.WEB)
     return render(request, "community/partials/attendance_board.html", _attendance_context(request.user))
 
 
@@ -145,19 +152,8 @@ def attendance_nfc(request: HttpRequest, token: str) -> HttpResponse:
     かざし直しやブラウザの先読みで、入室直後に退室扱いになるのを防ぐため。
     """
     tag = get_object_or_404(NfcTag.objects.select_related("user"), token=token, is_active=True)
-    status, _ = AttendanceStatus.objects.get_or_create(user=tag.user)
-
-    recent = AttendanceLog.objects.filter(
-        user=tag.user,
-        source=AttendanceSource.NFC,
-        recorded_at__gte=timezone.now() - timedelta(seconds=NFC_COOLDOWN_SECONDS),
-    ).exists()
-
-    if recent:
-        toggled = False
-    else:
-        status.toggle(source=AttendanceSource.NFC, tag=tag)
-        toggled = True
+    # クールダウン判定から履歴の記録までをまとめて排他的に行う
+    status, toggled = toggle_attendance_by_tag(tag)
 
     response = render(
         request,
