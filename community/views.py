@@ -6,6 +6,8 @@
 - News記事は、公開済みは全員が参照でき、下書きは作成者本人だけが見える（詳細設計書 3.7）。
 """
 
+from datetime import date, datetime, time, timedelta
+
 from django.contrib import messages
 from django.contrib.auth import get_user_model
 from django.contrib.auth.decorators import login_required
@@ -15,12 +17,38 @@ from django.shortcuts import get_object_or_404, redirect, render
 from django.utils import timezone
 from django.views.decorators.http import require_GET, require_POST
 
+from .attendance_summary import build_daily_stays
 from .forms import CanteenMenuForm, NewsPostForm
-from .models import AttendanceStatus, CanteenMenu, MenuSource, NewsPost, NewsStatus
+from .models import (
+    AttendanceLog,
+    AttendanceSource,
+    AttendanceStatus,
+    CanteenMenu,
+    MenuSource,
+    NewsPost,
+    NewsStatus,
+    NfcTag,
+)
 
 User = get_user_model()
 
 CANTEEN_HISTORY_LIMIT = 7
+ATTENDANCE_HISTORY_DAYS = 7
+ATTENDANCE_LOG_LIMIT = 300
+
+
+def _parse_date(raw: str | None, default: date) -> date:
+    """クエリの日付。未指定・不正な値は既定値にする（履歴画面は404にしない）。"""
+    if not raw:
+        return default
+    try:
+        return date.fromisoformat(raw)
+    except ValueError:
+        return default
+
+
+def _as_local_start_of_day(day: date) -> datetime:
+    return timezone.make_aware(datetime.combine(day, time.min))
 
 
 # --- 在室メンバー可視化 ---------------------------------------------------
@@ -58,8 +86,76 @@ def attendance_toggle(request: HttpRequest) -> HttpResponse:
     更新できるのは常にログインユーザー自身の状態に限る。
     """
     status, _ = AttendanceStatus.objects.get_or_create(user=request.user)
-    status.toggle()
+    status.toggle(source=AttendanceSource.WEB)
     return render(request, "community/partials/attendance_board.html", _attendance_context(request.user))
+
+
+@login_required
+@require_GET
+def attendance_history(request: HttpRequest) -> HttpResponse:
+    """GET /attendance/history : 入退室の履歴。
+
+    研究室の共有情報なので、全メンバーの履歴を全員が閲覧できる。
+    既定は直近7日で、メンバーと期間で絞り込める。
+    """
+    today = timezone.localdate()
+    default_from = today - timedelta(days=ATTENDANCE_HISTORY_DAYS - 1)
+
+    date_from = _parse_date(request.GET.get("from"), default_from)
+    date_to = _parse_date(request.GET.get("to"), today)
+    if date_from > date_to:
+        date_from, date_to = date_to, date_from
+
+    logs = AttendanceLog.objects.filter(
+        recorded_at__gte=_as_local_start_of_day(date_from),
+        recorded_at__lt=_as_local_start_of_day(date_to + timedelta(days=1)),
+    ).select_related("user", "tag")
+
+    member_id = request.GET.get("member") or ""
+    if member_id.isdigit():
+        logs = logs.filter(user_id=int(member_id))
+
+    logs = list(logs[:ATTENDANCE_LOG_LIMIT])
+    return render(
+        request,
+        "community/attendance_history.html",
+        {
+            "logs": logs,
+            "stays": build_daily_stays(logs),
+            "members": User.objects.filter(is_active=True),
+            "selected_member": member_id,
+            "date_from": date_from,
+            "date_to": date_to,
+            "is_truncated": len(logs) >= ATTENDANCE_LOG_LIMIT,
+        },
+    )
+
+
+@login_required
+def attendance_nfc(request: HttpRequest, token: str) -> HttpResponse:
+    """GET/POST /attendance/nfc/<token> : NFCタグからの入退室登録。
+
+    タグを読むと GET でこの画面が開く。GETでは状態を変えず、
+    表示された「入室」「退室」を押した POST で記録する
+    （ブラウザの先読みなどで意図せず打刻されるのを避けるため）。
+    """
+    tag = get_object_or_404(NfcTag, token=token, is_active=True)
+    status, _ = AttendanceStatus.objects.get_or_create(user=request.user)
+
+    if request.method == "POST":
+        entering = request.POST.get("action") == "enter"
+        status.set_state(entering, source=AttendanceSource.NFC, tag=tag)
+        messages.success(
+            request,
+            f"{tag.label} で{'入室' if entering else '退室'}を記録しました。",
+        )
+        return redirect("community:attendance_list")
+
+    return render(
+        request,
+        "community/attendance_nfc.html",
+        {"tag": tag, "status": status},
+    )
 
 
 # --- 学食メニュー共有 -----------------------------------------------------

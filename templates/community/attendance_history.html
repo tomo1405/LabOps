@@ -1,0 +1,124 @@
+{% extends "base.html" %}
+{% block title %}入退室履歴 | LabOps{% endblock %}
+{% block heading %}入退室履歴{% endblock %}
+{% block heading_actions %}
+  <a class="btn btn-outline-secondary" href="{% url 'community:attendance_list' %}">在室メンバーへ</a>
+{% endblock %}
+
+{% block breadcrumb %}
+<nav aria-label="現在の位置">
+  <ol class="breadcrumb small">
+    <li class="breadcrumb-item"><a href="{% url 'community:attendance_list' %}">在室メンバー</a></li>
+    <li class="breadcrumb-item active" aria-current="page">入退室履歴</li>
+  </ol>
+</nav>
+{% endblock %}
+
+{% block content %}
+<form class="row g-2 align-items-end mb-3" method="get">
+  <div class="col-auto">
+    <label class="form-label small mb-1" for="member">メンバー</label>
+    <select class="form-select" id="member" name="member">
+      <option value="">全員</option>
+      {% for member in members %}
+        <option value="{{ member.pk }}" {% if selected_member == member.pk|stringformat:"s" %}selected{% endif %}>
+          {{ member.name }}
+        </option>
+      {% endfor %}
+    </select>
+  </div>
+  <div class="col-auto">
+    <label class="form-label small mb-1" for="from">開始日</label>
+    <input type="date" class="form-control" id="from" name="from" value="{{ date_from|date:'Y-m-d' }}">
+  </div>
+  <div class="col-auto">
+    <label class="form-label small mb-1" for="to">終了日</label>
+    <input type="date" class="form-control" id="to" name="to" value="{{ date_to|date:'Y-m-d' }}">
+  </div>
+  <div class="col-auto">
+    <button type="submit" class="btn btn-outline-secondary">絞り込み</button>
+    <a class="btn btn-link" href="{% url 'community:attendance_history' %}">リセット</a>
+  </div>
+</form>
+
+{% if is_truncated %}
+  <div class="alert alert-warning py-2">
+    件数が多いため、直近の分のみ表示しています。期間を狭めて絞り込んでください。
+  </div>
+{% endif %}
+
+<div class="card mb-3">
+  <div class="card-header">日ごとの在室時間</div>
+  <div class="table-responsive">
+    <table class="table table-sm mb-0 align-middle">
+      <thead>
+        <tr>
+          <th>日付</th>
+          <th>メンバー</th>
+          <th>最初の入室</th>
+          <th>最後の退室</th>
+          <th>在室時間</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for stay in stays %}
+          <tr>
+            <td class="text-nowrap">{{ stay.day|date:"n/j (D)" }}</td>
+            <td class="text-nowrap">{{ stay.user.name }}</td>
+            <td class="text-nowrap">{{ stay.first_enter|date:"H:i"|default:"—" }}</td>
+            <td class="text-nowrap">
+              {% if stay.is_open %}
+                <span class="text-secondary">在室中</span>
+              {% else %}
+                {{ stay.last_exit|date:"H:i"|default:"—" }}
+              {% endif %}
+            </td>
+            <td class="text-nowrap">{{ stay.total_label }}</td>
+          </tr>
+        {% empty %}
+          <tr><td colspan="5" class="text-secondary">この期間の記録はありません。</td></tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+  <div class="card-footer text-secondary small">
+    入室と退室が対になっていない記録（打刻漏れ）は、在室時間の集計から除いています。
+  </div>
+</div>
+
+<div class="card">
+  <div class="card-header">記録の一覧（新しい順）</div>
+  <div class="table-responsive">
+    <table class="table table-sm mb-0 align-middle">
+      <thead>
+        <tr>
+          <th>日時</th>
+          <th>メンバー</th>
+          <th>種別</th>
+          <th>登録元</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for log in logs %}
+          <tr>
+            <td class="text-nowrap">{{ log.recorded_at|date:"n/j (D) H:i" }}</td>
+            <td class="text-nowrap">{{ log.user.name }}</td>
+            <td class="text-nowrap">
+              {% if log.is_enter %}
+                <span class="badge text-bg-success">入室</span>
+              {% else %}
+                <span class="badge text-bg-secondary">退室</span>
+              {% endif %}
+            </td>
+            <td class="text-nowrap">
+              {{ log.get_source_display }}{% if log.tag %}（{{ log.tag.label }}）{% endif %}
+            </td>
+          </tr>
+        {% empty %}
+          <tr><td colspan="4" class="text-secondary">この期間の記録はありません。</td></tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+</div>
+{% endblock %}

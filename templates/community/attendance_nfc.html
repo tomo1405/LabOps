@@ -1,0 +1,40 @@
+{% extends "base.html" %}
+{% block title %}入退室の記録 | LabOps{% endblock %}
+{% block heading %}入退室の記録{% endblock %}
+
+{% block content %}
+<div class="row justify-content-center">
+  <div class="col-md-6">
+    <div class="card">
+      <div class="card-header">
+        {{ tag.label }}{% if tag.location %}<span class="text-secondary small ms-2">{{ tag.location }}</span>{% endif %}
+      </div>
+      <div class="card-body">
+        <p class="mb-2">
+          {{ user.name }} さんの現在の状態：
+          <span class="fw-semibold">{% if status.is_present %}在室{% else %}不在{% endif %}</span>
+        </p>
+        <form method="post">
+          {% csrf_token %}
+          <div class="d-grid gap-2">
+            {% if status.is_present %}
+              <button type="submit" name="action" value="exit" class="btn btn-lg btn-primary">退室を記録</button>
+              <button type="submit" name="action" value="enter" class="btn btn-outline-secondary">入室として記録する</button>
+            {% else %}
+              <button type="submit" name="action" value="enter" class="btn btn-lg btn-success">入室を記録</button>
+              <button type="submit" name="action" value="exit" class="btn btn-outline-secondary">退室として記録する</button>
+            {% endif %}
+          </div>
+        </form>
+      </div>
+      <div class="card-footer text-secondary small">
+        現在の状態から判断して、押しやすい方を大きく表示しています。
+        間違えたときは、もう一方のボタンで上書きできます。
+      </div>
+    </div>
+    <p class="text-secondary small mt-3 mb-0">
+      記録されるのはログイン中のアカウントです。共用端末では、自分のアカウントか確認してください。
+    </p>
+  </div>
+</div>
+{% endblock %}

@@ -1,5 +1,7 @@
 """優先度2: 情報共有・コミュニケーション系のモデル（詳細設計書 2.2 / 2.9 / 2.10）。"""
 
+import secrets
+
 from django.conf import settings
 from django.db import models
 from django.utils import timezone
@@ -35,11 +37,108 @@ class AttendanceStatus(models.Model):
     def is_present(self) -> bool:
         return self.status == AttendanceState.PRESENT
 
-    def toggle(self) -> "AttendanceStatus":
-        """在室／不在を反転して保存する（詳細設計書 4章 /attendance/toggle）。"""
-        self.status = AttendanceState.ABSENT if self.is_present else AttendanceState.PRESENT
+    def toggle(self, source: str = "web", tag=None) -> "AttendanceStatus":
+        """在室／不在を反転して保存し、履歴を1件残す（詳細設計書 4章 /attendance/toggle）。"""
+        entering = not self.is_present
+        return self.set_state(entering, source=source, tag=tag)
+
+    def set_state(self, entering: bool, source: str = "web", tag=None) -> "AttendanceStatus":
+        """在室／不在を明示的に設定し、履歴を1件残す。
+
+        NFCタグからの打刻のように「入室」「退室」を直接指定する場合に使う。
+        """
+        self.status = AttendanceState.PRESENT if entering else AttendanceState.ABSENT
         self.save(update_fields=["status", "updated_at"])
+        AttendanceLog.objects.create(
+            user=self.user,
+            action=AttendanceAction.ENTER if entering else AttendanceAction.EXIT,
+            source=source,
+            tag=tag,
+        )
         return self
+
+
+class AttendanceAction(models.TextChoices):
+    ENTER = "enter", "入室"
+    EXIT = "exit", "退室"
+
+
+class AttendanceSource(models.TextChoices):
+    WEB = "web", "画面から"
+    NFC = "nfc", "NFCタグ"
+
+
+def generate_nfc_token() -> str:
+    """NFCタグに書き込むURLの識別子。推測できない値にする。"""
+    return secrets.token_urlsafe(16)
+
+
+class NfcTag(models.Model):
+    """入退室登録に使うNFCタグ（研究室の入り口などに貼る）。
+
+    タグにはこのレコードのURLを書き込む。誰が打刻したかはログイン情報で判定するため、
+    タグ自体は「どこで打刻したか」を表す。
+    """
+
+    label = models.CharField("名称", max_length=50, help_text="例: 入り口（右扉）")
+    location = models.CharField("設置場所", max_length=100, blank=True)
+    token = models.CharField(
+        "トークン", max_length=64, unique=True, default=generate_nfc_token, editable=False
+    )
+    is_active = models.BooleanField("有効", default=True)
+    created_at = models.DateTimeField("作成日時", auto_now_add=True)
+
+    class Meta:
+        verbose_name = "NFCタグ"
+        verbose_name_plural = "NFCタグ"
+        ordering = ["label"]
+
+    def __str__(self) -> str:
+        return self.label
+
+    @property
+    def url_path(self) -> str:
+        """タグに書き込むURL（ホスト名は運用環境に応じて前置する）。"""
+        from django.urls import reverse
+
+        return reverse("community:attendance_nfc", args=[self.token])
+
+
+class AttendanceLog(models.Model):
+    """入退室の履歴。在室状況を切り替えるたびに1件記録する。"""
+
+    user = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.CASCADE,
+        related_name="attendance_logs",
+        verbose_name="ユーザー",
+    )
+    action = models.CharField("種別", max_length=10, choices=AttendanceAction.choices)
+    source = models.CharField(
+        "登録元", max_length=10, choices=AttendanceSource.choices, default=AttendanceSource.WEB
+    )
+    tag = models.ForeignKey(
+        NfcTag,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name="logs",
+        verbose_name="NFCタグ",
+    )
+    recorded_at = models.DateTimeField("記録日時", auto_now_add=True, db_index=True)
+
+    class Meta:
+        verbose_name = "入退室履歴"
+        verbose_name_plural = "入退室履歴"
+        ordering = ["-recorded_at", "-id"]
+        indexes = [models.Index(fields=["user", "-recorded_at"])]
+
+    def __str__(self) -> str:
+        return f"{self.recorded_at:%Y-%m-%d %H:%M} {self.user.name} {self.get_action_display()}"
+
+    @property
+    def is_enter(self) -> bool:
+        return self.action == AttendanceAction.ENTER
 
 
 class MenuSource(models.TextChoices):

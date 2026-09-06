@@ -10,6 +10,9 @@ urlpatterns = [
     # 在室メンバー可視化
     path("attendance/", views.attendance_list, name="attendance_list"),
     path("attendance/toggle", views.attendance_toggle, name="attendance_toggle"),
+    path("attendance/history", views.attendance_history, name="attendance_history"),
+    # NFCタグに書き込むURL。タグ側は場所を表し、誰が打刻したかはログイン情報で判定する
+    path("attendance/nfc/<str:token>", views.attendance_nfc, name="attendance_nfc"),
     # 学食メニュー共有
     path("canteen/today", views.canteen_today, name="canteen_today"),
     path("canteen/", views.canteen_create, name="canteen_create"),

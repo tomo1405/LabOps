@@ -1,8 +1,14 @@
 {% extends "base.html" %}
 {% block title %}在室メンバー | LabOps{% endblock %}
 {% block heading %}在室メンバー{% endblock %}
+{% block heading_actions %}
+  <a class="btn btn-outline-secondary" href="{% url 'community:attendance_history' %}">入退室履歴</a>
+{% endblock %}
 
 {% block content %}
 {% include "community/partials/attendance_board.html" %}
-<p class="text-secondary small mt-3 mb-0">状態は手動で切り替えます。自動判定（入退室検知）は導入していません。</p>
+<p class="text-secondary small mt-3 mb-0">
+  状態は自分で切り替えます。入り口のNFCタグを読んでも登録できます（センサーによる自動判定はありません）。
+  過去の記録は<a href="{% url 'community:attendance_history' %}">入退室履歴</a>で確認できます。
+</p>
 {% endblock %}
