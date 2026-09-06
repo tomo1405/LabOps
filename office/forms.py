@@ -12,14 +12,12 @@ class TravelExpenseRequestForm(forms.ModelForm):
         model = TravelExpenseRequest
         fields = ["destination", "purpose", "amount", "travel_start", "travel_end"]
         widgets = {
-            "destination": forms.TextInput(
-                attrs={"class": "form-control", "placeholder": "例: 京都大学（言語処理学会 年次大会）"}
-            ),
+            "destination": forms.TextInput(attrs={"class": "form-control", "placeholder": "例: NAIST"}),
             "purpose": forms.Textarea(
                 attrs={
                     "class": "form-control",
                     "rows": 4,
-                    "placeholder": "例: 言語処理学会 年次大会での口頭発表",
+                    "placeholder": "例: ソフトウェア工学研究会での口頭発表",
                 }
             ),
             "amount": forms.NumberInput(attrs={"class": "form-control", "min": 1, "step": 1}),
