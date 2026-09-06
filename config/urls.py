@@ -8,6 +8,7 @@ urlpatterns = [
     path("", include("accounts.urls")),
     path("", include("research.urls")),
     path("", include("community.urls")),
+    path("", include("office.urls")),
 ]
 
 # 添付ファイル（MEDIA_ROOT）はここで公開しない。

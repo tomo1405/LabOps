@@ -131,6 +131,24 @@ MEDIA_ROOT = BASE_DIR / "media"
 # 開発・テストでは Django が FileResponse で返す。
 USE_X_ACCEL_REDIRECT = False if TESTING else env_bool("DJANGO_USE_X_ACCEL_REDIRECT", not DEBUG)
 
+# --- メール送信（出張費申請の通知に使う）---------------------------------
+# 開発中は送信せずコンソールへ出力する。本番は SMTP を使う。
+EMAIL_BACKEND = os.environ.get(
+    "DJANGO_EMAIL_BACKEND",
+    "django.core.mail.backends.console.EmailBackend"
+    if DEBUG
+    else "django.core.mail.backends.smtp.EmailBackend",
+)
+EMAIL_HOST = os.environ.get("EMAIL_HOST", "")
+EMAIL_PORT = int(os.environ.get("EMAIL_PORT", "587"))
+EMAIL_HOST_USER = os.environ.get("EMAIL_HOST_USER", "")
+EMAIL_HOST_PASSWORD = os.environ.get("EMAIL_HOST_PASSWORD", "")
+EMAIL_USE_TLS = env_bool("EMAIL_USE_TLS", True)
+DEFAULT_FROM_EMAIL = os.environ.get("DEFAULT_FROM_EMAIL", "labops@example.ac.jp")
+
+# 出張費申請の送信先。未設定の場合は教員ロールのメールアドレスへ送る
+TRAVEL_EXPENSE_RECIPIENTS = env_list("TRAVEL_EXPENSE_RECIPIENTS")
+
 DEFAULT_AUTO_FIELD = "django.db.models.AutoField"
 
 MESSAGE_STORAGE = "django.contrib.messages.storage.session.SessionStorage"

@@ -1,0 +1,74 @@
+{% extends "base.html" %}
+{% block title %}出張費申請 | LabOps{% endblock %}
+{% block heading %}出張費申請{% endblock %}
+{% block heading_actions %}
+  <a class="btn btn-outline-secondary" href="{% url 'research:conference_list' %}">学会準備へ</a>
+{% endblock %}
+
+{% block breadcrumb %}
+<nav aria-label="現在の位置">
+  <ol class="breadcrumb small">
+    <li class="breadcrumb-item"><a href="{% url 'research:conference_list' %}">学会準備</a></li>
+    <li class="breadcrumb-item active" aria-current="page">出張費申請</li>
+  </ol>
+</nav>
+{% endblock %}
+
+{% block content %}
+<div class="row g-3">
+  <div class="col-lg-7">
+    <div class="card">
+      <div class="card-header">申請内容</div>
+      <div class="card-body">
+        <form method="post" novalidate>
+          {% csrf_token %}
+          {% if form.non_field_errors %}
+            <div class="alert alert-danger py-2">{{ form.non_field_errors }}</div>
+          {% endif %}
+          {% for field in form %}
+            <div class="mb-3">
+              <label class="form-label" for="{{ field.id_for_label }}">{{ field.label }}</label>
+              {{ field }}
+              {% if field.help_text %}<div class="form-text">{{ field.help_text }}</div>{% endif %}
+              {% for error in field.errors %}<div class="text-danger small">{{ error }}</div>{% endfor %}
+            </div>
+          {% endfor %}
+          <button type="submit" class="btn btn-primary">申請してメールを送る</button>
+        </form>
+      </div>
+      <div class="card-footer text-secondary small">
+        申請すると、内容が教員あてにメールで届きます。返信するとあなた宛に返ります。
+        申請内容はこの画面にも残ります。
+      </div>
+    </div>
+  </div>
+
+  <div class="col-lg-5">
+    <div class="card">
+      <div class="card-header">自分の申請</div>
+      <ul class="list-group list-group-flush">
+        {% for request_item in requests %}
+          <li class="list-group-item">
+            <div class="d-flex justify-content-between align-items-start gap-2">
+              <span class="fw-semibold">{{ request_item.destination }}</span>
+              <span class="badge {% if request_item.status == 'approved' %}text-bg-success{% elif request_item.status == 'rejected' %}text-bg-secondary{% else %}text-bg-warning{% endif %} flex-shrink-0">
+                {{ request_item.get_status_display }}
+              </span>
+            </div>
+            <div class="text-secondary small">
+              {{ request_item.travel_start }} 〜 {{ request_item.travel_end }}／
+              {{ request_item.amount|floatformat:0 }} 円
+              {% if request_item.approved_by %}／承認: {{ request_item.approved_by.name }}{% endif %}
+            </div>
+          </li>
+        {% empty %}
+          <li class="list-group-item text-secondary">まだ申請はありません。</li>
+        {% endfor %}
+      </ul>
+      <div class="card-footer text-secondary small">
+        承認・却下の操作画面は未実装です。状態は教員が管理画面から更新します。
+      </div>
+    </div>
+  </div>
+</div>
+{% endblock %}

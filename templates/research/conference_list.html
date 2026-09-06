@@ -2,7 +2,10 @@
 {% block title %}学会準備 | LabOps{% endblock %}
 {% block heading %}学会準備{% endblock %}
 {% block heading_actions %}
-  <a class="btn btn-primary" href="{% url 'research:conference_create' %}">学会を登録</a>
+  <div class="d-flex gap-2">
+    <a class="btn btn-outline-secondary" href="{% url 'office:travel_expense_list' %}">出張費を申請</a>
+    <a class="btn btn-primary" href="{% url 'research:conference_create' %}">学会を登録</a>
+  </div>
 {% endblock %}
 
 {% block content %}
@@ -16,6 +19,8 @@
           締切 {{ prep.deadline }}
           {% if prep.is_overdue %}（締切超過）{% else %}（あと {{ prep.days_until_deadline }} 日）{% endif %}
         </span>
+        <a class="btn btn-sm btn-outline-secondary"
+           href="{% url 'office:travel_expense_list' %}?conference={{ prep.pk }}">出張費申請</a>
         <a class="btn btn-sm btn-outline-secondary" href="{% url 'research:conference_update' prep.pk %}">編集</a>
       </span>
     </div>
