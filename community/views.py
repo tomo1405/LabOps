@@ -19,15 +19,13 @@ from django.views.decorators.http import require_GET, require_POST
 
 from .attendance import NFC_COOLDOWN_SECONDS, toggle_attendance, toggle_attendance_by_tag
 from .attendance_summary import build_daily_stays
+from .canteen import save_menu
 from .forms import CanteenMenuForm, NewsPostForm
 from .models import (
     AttendanceLog,
     AttendanceSource,
     AttendanceStatus,
     CanteenMenu,
-    CanteenMenuItem,
-    MenuCategory,
-    MenuSource,
     NewsPost,
     NewsStatus,
     NfcTag,
@@ -182,21 +180,6 @@ def _canteen_context(form: CanteenMenuForm | None = None) -> dict:
     }
 
 
-def _save_menu_items(menu: CanteenMenu, form: CanteenMenuForm) -> None:
-    """入力された品目で登録済みの内容を置き換える。"""
-    menu.items.all().delete()
-    CanteenMenuItem.objects.bulk_create(
-        [
-            CanteenMenuItem(menu=menu, category=category, name=name, position=position)
-            for category, names in (
-                (MenuCategory.SET_MEAL, form.set_meal_names()),
-                (MenuCategory.DONBURI, form.donburi_names()),
-            )
-            for position, name in enumerate(names)
-        ]
-    )
-
-
 @login_required
 @require_GET
 def canteen_today(request: HttpRequest) -> HttpResponse:
@@ -213,15 +196,8 @@ def canteen_create(request: HttpRequest) -> HttpResponse:
     """
     form = CanteenMenuForm(request.POST)
     if form.is_valid():
-        menu, created = CanteenMenu.objects.update_or_create(
-            date=form.cleaned_data["date"],
-            defaults={
-                "menu_text": form.cleaned_data["menu_text"],
-                "source": MenuSource.MANUAL,
-                "registered_by": request.user,
-            },
-        )
-        _save_menu_items(menu, form)
+        # 本体の保存と品目の置き換えをまとめて確定させる
+        menu, created = save_menu(form, request.user)
         messages.success(request, f"{menu.date} のメニューを{'登録' if created else '更新'}しました。")
         return redirect("community:canteen_today")
     return render(request, "community/canteen.html", _canteen_context(form), status=400)
@@ -237,16 +213,8 @@ def canteen_update(request: HttpRequest, pk: int) -> HttpResponse:
     if request.method == "POST":
         form = CanteenMenuForm(request.POST, instance=menu)
         if form.is_valid():
-            date = form.cleaned_data["date"]
-            # 別の日付へ移す場合、その日に既存の登録があれば上書きして重複を作らない
-            CanteenMenu.objects.filter(date=date).exclude(pk=menu.pk).delete()
-            menu.date = date
-            menu.menu_text = form.cleaned_data["menu_text"]
-            menu.source = MenuSource.MANUAL
-            # 直したのが誰かが分かるよう、編集した人を登録者にする
-            menu.registered_by = request.user
-            menu.save()
-            _save_menu_items(menu, form)
+            # 置換先の削除・本体の保存・品目の置き換えをまとめて確定させる
+            menu, _ = save_menu(form, request.user, menu=menu)
             messages.success(request, f"{menu.date} のメニューを更新しました。")
             return redirect("community:canteen_today")
     else:
