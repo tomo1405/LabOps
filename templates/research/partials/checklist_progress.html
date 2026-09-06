@@ -1,0 +1,10 @@
+{# 完了率（機能仕様書 3.5）。htmx 応答では hx-swap-oob で同時に差し替える #}
+<div id="conference-progress-{{ prep.pk }}" class="d-flex align-items-center gap-2"
+     {% if oob %}hx-swap-oob="true"{% endif %}>
+  <div class="progress flex-grow-1" role="progressbar" aria-label="{{ prep.conference_name }} の準備進捗"
+       aria-valuenow="{{ prep.progress_percent }}" aria-valuemin="0" aria-valuemax="100"
+       style="height: 6px;">
+    <div class="progress-bar" style="width: {{ prep.progress_percent }}%"></div>
+  </div>
+  <span class="small text-secondary text-nowrap">完了 {{ prep.progress_percent }}%</span>
+</div>

@@ -13,6 +13,7 @@ from urllib.parse import quote
 from django.conf import settings
 from django.contrib import messages
 from django.contrib.auth.decorators import login_required
+from django.db import transaction
 from django.db.models import Q
 from django.http import FileResponse, Http404, HttpRequest, HttpResponse
 from django.shortcuts import get_object_or_404, redirect, render
@@ -600,15 +601,17 @@ def conference_create(request: HttpRequest) -> HttpResponse:
     if request.method == "POST":
         form = ConferencePrepForm(request.POST)
         if form.is_valid():
-            prep = form.save(commit=False)
-            prep.user = request.user
-            prep.save()
-            ConferenceChecklistItem.objects.bulk_create(
-                [
-                    ConferenceChecklistItem(conference=prep, item=item)
-                    for item in form.initial_checklist_items()
-                ]
-            )
+            # 学会準備だけが保存された状態を残さないよう、両方まとめて確定させる
+            with transaction.atomic():
+                prep = form.save(commit=False)
+                prep.user = request.user
+                prep.save()
+                ConferenceChecklistItem.objects.bulk_create(
+                    [
+                        ConferenceChecklistItem(conference=prep, item=item)
+                        for item in form.initial_checklist_items()
+                    ]
+                )
             messages.success(request, "学会準備を登録しました。")
             return redirect("research:conference_list")
     else:
@@ -626,13 +629,15 @@ def conference_update(request: HttpRequest, pk: int) -> HttpResponse:
     if request.method == "POST":
         form = ConferencePrepForm(request.POST, instance=prep)
         if form.is_valid():
-            form.save()
-            ConferenceChecklistItem.objects.bulk_create(
-                [
-                    ConferenceChecklistItem(conference=prep, item=item)
-                    for item in form.initial_checklist_items()
-                ]
-            )
+            # 学会名・締切日の変更だけが残る部分更新を避ける
+            with transaction.atomic():
+                form.save()
+                ConferenceChecklistItem.objects.bulk_create(
+                    [
+                        ConferenceChecklistItem(conference=prep, item=item)
+                        for item in form.initial_checklist_items()
+                    ]
+                )
             messages.success(request, "学会準備を更新しました。")
             return redirect("research:conference_list")
     else:
@@ -665,7 +670,7 @@ def checklist_item_delete(request: HttpRequest, pk: int, item_id: int) -> HttpRe
     item.delete()
     return render(
         request,
-        "research/partials/checklist.html",
+        "research/partials/checklist_response.html",
         {"prep": prep, "item_form": ConferenceChecklistItemForm()},
     )
 
@@ -682,7 +687,7 @@ def checklist_item_toggle(request: HttpRequest, pk: int, item_id: int) -> HttpRe
     )
     item.done = not item.done
     item.save(update_fields=["done"])
-    return render(request, "research/partials/checklist_item.html", {"item": item})
+    return render(request, "research/partials/checklist_item_response.html", {"item": item})
 
 
 @login_required
@@ -700,7 +705,7 @@ def checklist_item_create(request: HttpRequest, pk: int) -> HttpResponse:
         status = 400
     return render(
         request,
-        "research/partials/checklist.html",
+        "research/partials/checklist_response.html",
         {"prep": prep, "item_form": ConferenceChecklistItemForm() if status == 200 else form},
         status=status,
     )

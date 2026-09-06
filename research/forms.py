@@ -129,11 +129,20 @@ class ScheduleEventForm(forms.ModelForm):
 
 
 class ConferencePrepForm(forms.ModelForm):
+    """学会準備の登録・編集フォーム。
+
+    チェックリスト項目は改行区切りでまとめて受け取るが、
+    個別追加（ConferenceChecklistItemForm）と同じ長さ制約を適用する。
+    """
+
+    # 制約値を二重に持たないよう、モデルの定義をそのまま参照する
+    ITEM_MAX_LENGTH = ConferenceChecklistItem._meta.get_field("item").max_length
+
     checklist_items = forms.CharField(
         label="チェックリスト項目",
         required=False,
         widget=forms.Textarea(attrs={"class": "form-control", "rows": 5, "placeholder": "1行に1項目"}),
-        help_text="1行に1項目を入力してください（後から追加もできます）",
+        help_text=f"1行に1項目を入力してください（1項目{ITEM_MAX_LENGTH}文字以内。後から追加もできます）",
     )
 
     class Meta:
@@ -144,10 +153,32 @@ class ConferencePrepForm(forms.ModelForm):
             "deadline": forms.DateInput(attrs={"type": "date", "class": "form-control"}),
         }
 
-    def initial_checklist_items(self) -> list[str]:
-        """入力されたチェックリスト項目を1行1項目として取り出す。"""
+    def clean_checklist_items(self) -> list[str]:
+        """1行1項目として取り出し、空行を除いたうえで長さを検証する。
+
+        モデルの max_length はDBによっては強制されないため、
+        ここで必ず検証して環境差が出ないようにする。
+        """
         raw = self.cleaned_data.get("checklist_items", "")
-        return [line.strip() for line in raw.splitlines() if line.strip()]
+        items: list[str] = []
+        too_long: list[int] = []
+        for lineno, line in enumerate(raw.splitlines(), start=1):
+            item = line.strip()
+            if not item:
+                continue
+            if len(item) > self.ITEM_MAX_LENGTH:
+                too_long.append(lineno)
+            items.append(item)
+        if too_long:
+            lines = "、".join(f"{n}行目" for n in too_long)
+            raise forms.ValidationError(
+                f"{lines}が長すぎます。1項目は{self.ITEM_MAX_LENGTH}文字以内にしてください。"
+            )
+        return items
+
+    def initial_checklist_items(self) -> list[str]:
+        """検証済みのチェックリスト項目（空行は除去済み）。"""
+        return self.cleaned_data.get("checklist_items", [])
 
 
 class ConferenceChecklistItemForm(forms.ModelForm):
