@@ -89,6 +89,20 @@ class NavigationActiveTests(TestCase):
         post = NewsPost.objects.create(title="お知らせ", body="本文", author=self.user)
         self.assertEqual(self._active_labels(reverse("community:news_update", args=[post.pk])), ["News"])
 
+    def test_admin_link_is_hidden_for_normal_members(self):
+        """管理画面のリンクは、管理画面を使えない人には出さない。"""
+        response = self.client.get(reverse("research:dashboard"))
+        self.assertNotContains(response, reverse("admin:index"))
+
+    def test_admin_link_is_shown_to_staff(self):
+        staff = User.objects.create_user(
+            email="staff@example.com", password="pw12345!", name="管理者", is_staff=True
+        )
+        self.client.force_login(staff)
+        response = self.client.get(reverse("research:dashboard"))
+        self.assertContains(response, reverse("admin:index"))
+        self.assertContains(response, "管理画面")
+
     def test_sub_page_shows_breadcrumb_to_parent(self):
         entry = DiaryEntry.objects.create(user=self.user, date=timezone.localdate(), content="記録")
         response = self.client.get(reverse("research:diary_detail", args=[entry.pk]))

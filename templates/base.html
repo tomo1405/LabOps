@@ -57,8 +57,12 @@
              {% if is_news %}aria-current="page"{% endif %}>News</a>
         </li>
       </ul>
-      <div class="d-flex align-items-center gap-3">
+      <div class="d-flex align-items-center gap-2 flex-wrap">
         <span class="navbar-text">{{ user.name }}</span>
+        {# 管理画面は is_staff を持つ人（教員・開発者）だけに出す #}
+        {% if user.is_staff %}
+          <a class="btn btn-sm btn-outline-light" href="{% url 'admin:index' %}">管理画面</a>
+        {% endif %}
         <form method="post" action="{% url 'accounts:logout' %}">
           {% csrf_token %}
           <button type="submit" class="btn btn-sm btn-outline-light">ログアウト</button>
