@@ -173,7 +173,7 @@ def attendance_nfc(request: HttpRequest, token: str) -> HttpResponse:
 
 def _canteen_context(form: CanteenMenuForm | None = None) -> dict:
     today = timezone.localdate()
-    menus = CanteenMenu.objects.prefetch_related("items")
+    menus = CanteenMenu.objects.select_related("registered_by").prefetch_related("items")
     return {
         "today": today,
         "today_menu": menus.filter(date=today).first(),
@@ -215,7 +215,11 @@ def canteen_create(request: HttpRequest) -> HttpResponse:
     if form.is_valid():
         menu, created = CanteenMenu.objects.update_or_create(
             date=form.cleaned_data["date"],
-            defaults={"menu_text": form.cleaned_data["menu_text"], "source": MenuSource.MANUAL},
+            defaults={
+                "menu_text": form.cleaned_data["menu_text"],
+                "source": MenuSource.MANUAL,
+                "registered_by": request.user,
+            },
         )
         _save_menu_items(menu, form)
         messages.success(request, f"{menu.date} のメニューを{'登録' if created else '更新'}しました。")
@@ -239,6 +243,8 @@ def canteen_update(request: HttpRequest, pk: int) -> HttpResponse:
             menu.date = date
             menu.menu_text = form.cleaned_data["menu_text"]
             menu.source = MenuSource.MANUAL
+            # 直したのが誰かが分かるよう、編集した人を登録者にする
+            menu.registered_by = request.user
             menu.save()
             _save_menu_items(menu, form)
             messages.success(request, f"{menu.date} のメニューを更新しました。")

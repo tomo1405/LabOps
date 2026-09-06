@@ -11,7 +11,10 @@
         {% if today_menu %}
           {% include "community/partials/menu_body.html" with menu=today_menu %}
           <div class="d-flex justify-content-between align-items-center mt-2">
-            <span class="badge text-bg-light">{{ today_menu.get_source_display }}</span>
+            <span class="text-secondary small">
+              <span class="badge text-bg-light">{{ today_menu.get_source_display }}</span>
+              登録: {{ today_menu.registered_by_name }}
+            </span>
             <a class="btn btn-sm btn-outline-secondary"
                href="{% url 'community:canteen_update' today_menu.pk %}">編集</a>
           </div>
@@ -27,7 +30,10 @@
         {% for menu in recent_menus %}
           <li class="list-group-item d-flex justify-content-between align-items-start gap-2">
             <div class="menu-history-body">
-              <div class="fw-semibold">{{ menu.date|date:"n月j日 (D)" }}</div>
+              <div class="fw-semibold">
+                {{ menu.date|date:"n月j日 (D)" }}
+                <span class="text-secondary fw-normal small">登録: {{ menu.registered_by_name }}</span>
+              </div>
               <div class="small">{% include "community/partials/menu_body.html" with menu=menu %}</div>
             </div>
             <a class="btn btn-sm btn-outline-secondary flex-shrink-0"

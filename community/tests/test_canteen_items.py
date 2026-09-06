@@ -129,6 +129,39 @@ class CanteenMenuItemTests(TestCase):
         self.assertContains(response, "からあげ定食")
         self.assertContains(response, "親子丼")
 
+    def test_registered_by_is_recorded(self):
+        self._post(reverse("community:canteen_create"))
+        self.assertEqual(CanteenMenu.objects.get().registered_by, self.user)
+
+    def test_editor_becomes_the_registered_user(self):
+        """他の人が直した場合は、登録者がその人に変わる。"""
+        self._post(reverse("community:canteen_create"))
+        menu = CanteenMenu.objects.get()
+
+        mate = User.objects.create_user(email="mate@example.com", password="pw12345!", name="同僚")
+        self.client.force_login(mate)
+        self._post(reverse("community:canteen_update", args=[menu.pk]), set_meals="日替わり定食")
+
+        menu.refresh_from_db()
+        self.assertEqual(menu.registered_by, mate)
+
+    def test_pages_show_the_registered_user(self):
+        self._post(reverse("community:canteen_create"))
+        response = self.client.get(reverse("community:canteen_today"))
+        self.assertContains(response, "登録: 本人")
+
+    def test_menu_survives_deletion_of_the_registered_user(self):
+        """登録者が退会しても、研究室の共有情報として献立は残す。"""
+        mate = User.objects.create_user(email="mate@example.com", password="pw12345!", name="同僚")
+        self.client.force_login(mate)
+        self._post(reverse("community:canteen_create"))
+        mate.delete()
+
+        menu = CanteenMenu.objects.get()
+        self.assertIsNone(menu.registered_by)
+        self.assertEqual(menu.registered_by_name, "登録者不明")
+        self.assertEqual([i.name for i in menu.set_meals], ["からあげ定食", "鯖の味噌煮定食"])
+
     def test_is_empty_detects_menu_without_content(self):
         menu = CanteenMenu.objects.create(date=self.today)
         self.assertTrue(menu.is_empty)

@@ -180,6 +180,15 @@ class CanteenMenu(models.Model):
         "補足", blank=True, help_text="定食・丼以外の情報（麺コーナー、臨時休業など）"
     )
     source = models.CharField("取得元", max_length=10, choices=MenuSource.choices, default=MenuSource.MANUAL)
+    registered_by = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name="registered_canteen_menus",
+        verbose_name="登録者",
+        help_text="最後に登録・更新した人。研究室の共有情報のため、退会しても献立は残す",
+    )
 
     class Meta:
         verbose_name = "学食メニュー"
@@ -188,6 +197,11 @@ class CanteenMenu(models.Model):
 
     def __str__(self) -> str:
         return f"{self.date} の学食メニュー"
+
+    @property
+    def registered_by_name(self) -> str:
+        """登録者の表示名。古い記録には登録者が入っていない。"""
+        return self.registered_by.name if self.registered_by else "登録者不明"
 
     def items_of(self, category: str) -> list["CanteenMenuItem"]:
         """区分ごとの品目。プリフェッチ済みの場合もクエリを増やさない。"""

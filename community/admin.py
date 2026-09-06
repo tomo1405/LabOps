@@ -73,8 +73,8 @@ class CanteenMenuItemInline(admin.TabularInline):
 @admin.register(CanteenMenu)
 class CanteenMenuAdmin(admin.ModelAdmin):
     inlines = [CanteenMenuItemInline]
-    list_display = ("date", "source")
-    list_filter = ("source",)
+    list_display = ("date", "registered_by", "source")
+    list_filter = ("source", "registered_by")
     date_hierarchy = "date"
 
 
