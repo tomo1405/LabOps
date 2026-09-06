@@ -65,10 +65,18 @@
           <tr>
             <td class="text-nowrap">{{ stay.day|date:"n/j (D)" }}</td>
             <td class="text-nowrap">{{ stay.user.name }}</td>
-            <td class="text-nowrap">{{ stay.first_enter|date:"H:i"|default:"—" }}</td>
+            <td class="text-nowrap">
+              {% if stay.continued_from_previous %}
+                <span class="text-secondary">前日から</span>
+              {% else %}
+                {{ stay.first_enter|date:"H:i"|default:"—" }}
+              {% endif %}
+            </td>
             <td class="text-nowrap">
               {% if stay.is_open %}
                 <span class="text-secondary">在室中</span>
+              {% elif stay.continues_to_next %}
+                <span class="text-secondary">翌日へ</span>
               {% else %}
                 {{ stay.last_exit|date:"H:i"|default:"—" }}
               {% endif %}
@@ -83,6 +91,7 @@
   </div>
   <div class="card-footer text-secondary small">
     入室と退室が対になっていない記録（打刻漏れ）は、在室時間の集計から除いています。
+    日をまたぐ滞在は、日付の境目で分けてそれぞれの日に集計しています。
   </div>
 </div>
 

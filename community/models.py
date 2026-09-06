@@ -38,23 +38,26 @@ class AttendanceStatus(models.Model):
         return self.status == AttendanceState.PRESENT
 
     def toggle(self, source: str = "web", tag=None) -> "AttendanceStatus":
-        """在室／不在を反転して保存し、履歴を1件残す（詳細設計書 4章 /attendance/toggle）。"""
-        entering = not self.is_present
-        return self.set_state(entering, source=source, tag=tag)
+        """在室／不在を反転して保存し、履歴を1件残す（詳細設計書 4章 /attendance/toggle）。
+
+        実処理は community.attendance に集約している。状態の更新と履歴の記録を
+        1トランザクションで行い、対象メンバーの行をロックして同時打刻を直列化する。
+        """
+        from .attendance import toggle_attendance
+
+        refreshed = toggle_attendance(self.user, source=source, tag=tag)
+        self.status = refreshed.status
+        return self
 
     def set_state(self, entering: bool, source: str = "web", tag=None) -> "AttendanceStatus":
         """在室／不在を明示的に設定し、履歴を1件残す。
 
         NFCタグからの打刻のように「入室」「退室」を直接指定する場合に使う。
         """
-        self.status = AttendanceState.PRESENT if entering else AttendanceState.ABSENT
-        self.save(update_fields=["status", "updated_at"])
-        AttendanceLog.objects.create(
-            user=self.user,
-            action=AttendanceAction.ENTER if entering else AttendanceAction.EXIT,
-            source=source,
-            tag=tag,
-        )
+        from .attendance import set_attendance
+
+        refreshed = set_attendance(self.user, entering, source=source, tag=tag)
+        self.status = refreshed.status
         return self
 
 
