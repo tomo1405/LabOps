@@ -9,6 +9,8 @@
   <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css">
   <link rel="stylesheet" href="{% static 'css/app.css' %}">
   <script src="https://cdn.jsdelivr.net/npm/htmx.org@1.9.12/dist/htmx.min.js" defer></script>
+  {# htmx の入力エラー（400）を画面へ反映するための設定。htmx より後に読み込む #}
+  <script src="{% static 'js/app.js' %}" defer></script>
 </head>
 <body class="bg-body-tertiary">
 <nav class="navbar navbar-expand-lg bg-dark border-bottom" data-bs-theme="dark">

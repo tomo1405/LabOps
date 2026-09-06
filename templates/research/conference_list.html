@@ -19,8 +19,11 @@
         <a class="btn btn-sm btn-outline-secondary" href="{% url 'research:conference_update' prep.pk %}">編集</a>
       </span>
     </div>
-    <div class="card-body" id="checklist-{{ prep.pk }}">
-      {% include "research/partials/checklist.html" with prep=prep item_form=item_form %}
+    <div class="card-body">
+      {% include "research/partials/checklist_progress.html" with prep=prep %}
+      <div id="checklist-{{ prep.pk }}" class="mt-3">
+        {% include "research/partials/checklist.html" with prep=prep item_form=item_form %}
+      </div>
     </div>
   </div>
 {% empty %}
