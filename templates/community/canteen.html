@@ -6,7 +6,7 @@
 <div class="row g-3">
   <div class="col-lg-7">
     <div class="card">
-      <div class="card-header">本日（{{ today|date:"Y年n月j日 (D)" }}）のメニュー</div>
+      <div class="card-header">本日のメニュー {{ today|date:"Y年n月j日 (D)" }}</div>
       <div class="card-body">
         {% if today_menu %}
           {% include "community/partials/menu_body.html" with menu=today_menu %}

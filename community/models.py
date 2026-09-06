@@ -171,11 +171,14 @@ class MeetingRoom(models.Model):
     location = models.CharField("場所", max_length=100, blank=True, help_text="例: B307")
     capacity = models.PositiveIntegerField("定員", null=True, blank=True)
     is_active = models.BooleanField("利用可", default=True)
+    position = models.PositiveIntegerField(
+        "並び順", default=0, help_text="小さいほど先に表示する。同じ値のときは名称順"
+    )
 
     class Meta:
         verbose_name = "会議室"
         verbose_name_plural = "会議室"
-        ordering = ["name"]
+        ordering = ["position", "name"]
 
     def __str__(self) -> str:
         return self.label

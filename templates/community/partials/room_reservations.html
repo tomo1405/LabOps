@@ -1,7 +1,7 @@
 {# 会議室予約（在室ページに組み込む） #}
 <div class="card mt-4">
   <div class="card-header d-flex flex-wrap justify-content-between align-items-center gap-2">
-    <span>会議室の予約（{{ reservation_day|date:"n月j日 (D)" }}）</span>
+    <span>会議室の予約 {{ reservation_day|date:"n月j日 (D)" }}</span>
     <div class="btn-group btn-group-sm" role="group" aria-label="日付の移動">
       <a class="btn btn-outline-secondary"
          href="{% url 'community:attendance_list' %}?date={{ reservation_prev }}">前日</a>

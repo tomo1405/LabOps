@@ -31,6 +31,21 @@ class InitialMeetingRoomTests(TestCase):
             },
         )
 
+    def test_rooms_are_listed_in_the_configured_order(self):
+        """研究室で使う順に並べる（名称順ではない）。"""
+        self.assertEqual(
+            [r.name for r in MeetingRoom.objects.all()],
+            ["全体ミーティングルーム", "ミーティングルーム", "サーバルーム", "ゲームルーム"],
+        )
+
+    def test_reservation_form_keeps_the_same_order(self):
+        user = User.objects.create_user(email="order@example.com", password="pw12345!", name="本人")
+        self.client.force_login(user)
+        response = self.client.get(reverse("community:attendance_list"))
+        rooms = [r.name for r in response.context["reservation_form"].fields["room"].queryset]
+        self.assertEqual(rooms[0], "全体ミーティングルーム")
+        self.assertEqual(rooms[-1], "ゲームルーム")
+
     def test_label_includes_the_room_number(self):
         """似た名称を見分けられるよう、表示名に部屋番号を添える。"""
         room = MeetingRoom.objects.get(name="ミーティングルーム")
@@ -155,6 +170,11 @@ class RoomReservationTests(TestCase):
         self.assertEqual(RoomReservation.objects.count(), 2)
 
     # --- 表示 ---
+
+    def test_heading_shows_the_date_without_wrapping_parentheses(self):
+        response = self.client.get(reverse("community:attendance_list"))
+        self.assertContains(response, "会議室の予約 ")
+        self.assertNotContains(response, "会議室の予約（")
 
     def test_attendance_page_lists_todays_reservations(self):
         self._existing(13, 14)

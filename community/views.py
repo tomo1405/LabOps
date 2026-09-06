@@ -92,7 +92,7 @@ def _reservation_context(request: HttpRequest, day: date, form=None) -> dict:
             start_at__lt=_as_local_start_of_day(day + timedelta(days=1)),
         )
         .select_related("room", "user")
-        .order_by("room__name", "start_at")
+        .order_by("room__position", "room__name", "start_at")
     )
     return {
         "reservation_day": day,
